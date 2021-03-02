@@ -4,7 +4,7 @@ require 'rbbt/sources/organism'
 
 module Proteomics
 
-  helper :parse_mi do |mi|
+  helper :parse_mi do |mi, organism=Organism.default_code("Hsa")|
     isoform, residue = nil
 
     case
@@ -32,19 +32,21 @@ module Proteomics
 
   input :mutated_isoforms, :array, "Mutated Isoform", nil, :stream => true
   input :organism, :string, "Organism code", Organism.default_code("Hsa")
-  task :mi_neighbours => :tsv do |mis,organism|
+  input :only_pdb, :boolean, "Only consider PDB neighbours", false
+  input :just_one, :boolean, "Consider only neighbours from first PDB that contains them", true
+  task :mi_neighbours => :tsv do |mis,organism,only_pdb,just_one|
 
-    cpus =  config :cpus, :mi_neighbours, :proteomics, :neighbours, :Proteomics, :default => 2
+    cpus =  config :cpus, :mi_neighbours, :neighbours, :proteomics, :Proteomics, :default => 2
 
     annotations = TSV::Dumper.new :key_field => "Mutated Isoform", :fields => ["Residue", "PDB", "Neighbours"], :type => :double, :namespace => organism
     annotations.init
     TSV.traverse mis, :cpus => cpus, :bar => self.progress_bar("Mutated Isoform neighbours"), :into => annotations, :type => :array do |mi|
 
-      isoform, residue = parse_mi mi
+      isoform, residue = parse_mi mi, organism
 
       next if isoform.nil?
 
-      n = Proteomics.neighbours(isoform, [residue], organism)
+      n = Proteomics.neighbours(isoform, [residue], organism, 5, only_pdb, just_one)
 
       next if n.empty?
 
@@ -60,6 +62,35 @@ module Proteomics
       next if ns.empty?
 
       [mi, [residue, pdbs, ns]]
+    end
+  end
+
+  input :mutated_isoforms, :array, "Mutated Isoform", nil, :stream => true
+  input :organism, :string, "Organism code", Organism.default_code("Hsa")
+  input :distance, :float, "Distance with partner residue", 8
+  task :mi_interfaces => :tsv do |mis,organism,distance|
+    cpus =  config :cpus, :mi_interfaces, :interfaces, :proteomics, :Proteomics, :default => 2
+
+    mi_annotations = TSV::Dumper.new :key_field => "Mutated Isoform", :fields => ["Residue", "Partner (Ensembl Protein ID)", "PDB", "Partner Residues"], :type => :double, :namespace => organism
+    mi_annotations.init
+    TSV.traverse mis, :cpus => cpus, :bar => self.progress_bar("Mutated Isoform interfaces"), :into => mi_annotations, :type => :array do |mi|
+
+      isoform, residue = parse_mi mi, organism
+
+      next if isoform.nil?
+
+      n = Proteomics.interface_neighbours_i3d(isoform.dup, [residue], organism, distance)
+
+      next if n.nil? or n.empty?
+
+      all_annots = []
+      n.each do |r,v|
+        _pos,part,pdb,n = v
+        next if part.nil? or part.empty?
+        all_annots << [residue, part, pdb, n]
+      end
+
+      [mi, Misc.zip_fields(all_annots)]
     end
   end
 end

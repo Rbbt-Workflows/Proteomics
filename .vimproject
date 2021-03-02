@@ -4,17 +4,25 @@ Proteomics=/$PWD filter="*.rb *.rake Rakefile *.rdoc *.R *.sh *.js *.haml *.sass
  }
  lib=lib {
   rbbt=rbbt{
+   sources=sources{
+    interactome_3d.rb
+   }
    tools=tools{
     ssw.rb
    }
-   alignments.rb
+   annotations=annotations{
+    uniprot.rb
+   }
    PDB.rb
    PDB=PDB{
     distances.rb
+    isoform.rb
    }
+   alignments.rb
   }
   Proteomics=Proteomics{
    identifiers.rb
+   neighbours.rb
    tasks=tasks{
     alignments.rb
     neighbours.rb

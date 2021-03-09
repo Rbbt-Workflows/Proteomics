@@ -1,8 +1,8 @@
 require 'rbbt-util'
-require 'rbbt/alignments'
-
 require 'rbbt/PDB/distances'
+
 module PDB
+  USE_REPOSITORY_DIR = true
 
   def self.cache(code)
     Rbbt.var.Proteomics.PDB[code.to_s]
@@ -29,7 +29,6 @@ module PDB
         end
         StringIO.new(content)
       rescue Exception
-        Log.exception $!
         raise "No valid pdb provided: #{ Misc.fingerprint pdb }"
       end
     end
@@ -68,7 +67,7 @@ module PDB
     Persist.persist("PDB aligment map", :marshal, :persist => true, :dir => cache(:pdb_alignment_map), :other => {:pdb => pdb, :pdbfile => pdbfile, :sequence => sequence}) do 
       map = {} 
       chains.each do |chain,chain_sequence|
-        map[chain] = Proteomics.alignment_map(sequence, chain_sequence)
+        map[chain] = SmithWaterman.alignment_map(sequence, chain_sequence)
       end
       map
     end

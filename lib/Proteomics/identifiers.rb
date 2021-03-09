@@ -1,3 +1,8 @@
+require 'rbbt-util'
+require 'rbbt/sources/organism'
+require 'rbbt/workflow'
+Workflow.require_workflow "Appris"
+
 module Proteomics
   def self.uni2iso(organism = Organism.default_code("Hsa"))
     @@uni2iso ||= {}
@@ -16,7 +21,9 @@ module Proteomics
     @@iso2seq[organism] ||= Organism.protein_sequence(organism).tsv :persist => true, :unnamed => true
   end
 
-  def self.name2pi (mutation, organism)
+  def self.gene2isoform(gene, organism = Organism.default_code("Hsa"))
+    return gene if gene =~ /^ENSP\d+$/
+
     @@name2ensg ||= Organism.identifiers(organism).index :target => "Ensembl Gene ID", :order => true, :persist => true
     @@ensg2enst ||= Organism.transcripts(organism).tsv :key_field => "Ensembl Gene ID", :fields => ["Ensembl Transcript ID"], :persist => true, :merge => true, :type => :flat
     @@enst2ensp ||= Organism.transcripts(organism).index :target => "Ensembl Protein ID", :fields => ["Ensembl Transcript ID"], :persist => true, :merge => true
@@ -24,10 +31,9 @@ module Proteomics
     @@uni2ensp ||= Organism.uniprot2ensembl(organism).index :persist => true, :target => "Ensembl Protein ID"
     @@ensp2uni ||= Organism.ensembl2uniprot(organism).index :persist => true, :target => "UniProt/SwissProt Accession"
 
-    orig_gene, _sep, change = mutation.partition ":"
-    gene = @@name2ensg[orig_gene]
+    gene = @@name2ensg[gene] 
 
-    return nil if gene.nil? or @@ensg2enst[gene].nil?
+    return nil if gene.nil?
 
     gene_transcripts = @@ensg2enst[gene].sort_by{|t| @@enst2name[t].split("-").last.to_i}
     gene_isoforms = @@enst2ensp.values_at(*gene_transcripts).compact.reject{|i| i.empty?}
@@ -56,6 +62,27 @@ module Proteomics
     end
 
     return nil if protein.nil? or protein.empty?
+    perfect_principal_isoforms = uni_pricipal_isoforms & perfect_isoforms
+
+    if perfect_principal_isoforms.any?
+      protein = perfect_principal_isoforms.first
+    elsif uni_pricipal_isoforms.any?
+      protein = uni_pricipal_isoforms
+    elsif perfect_isoforms.any?
+      protein = perfect_isoforms.first
+    elsif principal_isoforms.any?
+      protein = principal_isoforms.first
+    else
+      protein = gene_isoforms.first
+    end
+
+    protein
+  end
+
+  def self.name2pi(mutation, organism = Organism.default_code("Hsa"))
+    gene, _sep, change = mutation.partition ":"
+
+    protein = gene2isoform(gene, organism)
 
     [protein, change] * ":"
   end

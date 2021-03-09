@@ -10,23 +10,30 @@ Proteomics=/$PWD filter="*.rb *.rake Rakefile *.rdoc *.R *.sh *.js *.haml *.sass
    tools=tools{
     ssw.rb
    }
-   annotations=annotations{
-    uniprot.rb
-   }
+
    PDB.rb
    PDB=PDB{
     distances.rb
     isoform.rb
    }
-   alignments.rb
   }
   Proteomics=Proteomics{
    identifiers.rb
    neighbours.rb
+   annotators.rb
+   unfold.rb
+   annotators=annotators{
+    uniprot.rb
+    appris.rb
+    COSMIC.rb
+    InterPro.rb
+   }
    tasks=tasks{
-    alignments.rb
-    neighbours.rb
+    PDB.rb
     mutated_isoforms.rb
+    genomic_mutations.rb
+    wizard.rb
+    scores.rb
    }
   }
  }

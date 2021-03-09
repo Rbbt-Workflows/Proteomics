@@ -44,8 +44,8 @@ module PDB
 
     return pdbs if uniprot.nil?
 
-    interactions = Interactome3d.interactions_tsv.tsv :merge => true, :persist => true
-    interactions_reverse = Interactome3d.interactions_tsv.tsv :merge => true, :key_field => "PROT2", :zipped => true, :persist => true
+    interactions = @@interactions ||= Interactome3d.interactions_tsv.tsv :merge => true, :persist => true
+    interactions_reverse = @@interactions_reverse ||= Interactome3d.interactions_tsv.tsv :merge => true, :key_field => "PROT2", :zipped => true, :persist => true
 
     if values = interactions[uniprot]
       prot1 = uniprot

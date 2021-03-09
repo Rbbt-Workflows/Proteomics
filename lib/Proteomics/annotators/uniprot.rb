@@ -1,28 +1,32 @@
 require 'rbbt/sources/uniprot'
+require 'rbbt/tools/ssw'
+
 module Proteomics
   def self.uniprot_sequence_map(uniprot, sequence)
     uniprot_sequence = UniProt.sequence(uniprot)
-    map = sequence_map(uniprot_sequence, sequence)
+    SmithWaterman.alignment_map(uniprot_sequence, sequence)
   end
 
   def self.corrected_uniprot_features(uniprot, sequence)
-    uniprot_sequence = UniProt.sequence(uniprot)
+    Persist.persist("Corrected UniProt features", :marshal,  :persist => true, :dir => Proteomics::Annotator.cache(:corrected_uniprot_features), :other => {:uniprot => uniprot, :sequence => sequence}) do
+      uniprot_sequence = UniProt.sequence(uniprot)
 
-    map = uniprot_sequence_map(uniprot, sequence)
+      map = uniprot_sequence_map(uniprot, sequence)
 
-    features = UniProt.features(uniprot)
-    corrected_features = []
-    features.each do |info|
-      corrected_start = map[info[:start]]
-      corrected_end = map[info[:end]]
-      next if corrected_start.nil? or corrected_end.nil?
-      corrected_info = info.dup
-      corrected_info[:start] = corrected_start
-      corrected_info[:end] = corrected_end
-      corrected_features << corrected_info
+      features = UniProt.features(uniprot)
+      corrected_features = []
+      features.each do |info|
+        corrected_start = map[info[:start]]
+        corrected_end = map[info[:end]]
+        next if corrected_start.nil? or corrected_end.nil?
+        corrected_info = info.dup
+        corrected_info[:start] = corrected_start
+        corrected_info[:end] = corrected_end
+        corrected_features << corrected_info
+      end
+
+      corrected_features
     end
-
-    corrected_features
   end
 
 
@@ -49,7 +53,7 @@ module Proteomics
                                      ensp_sequence = ensp2sequence[ensp]
                                      raise "No sequence: #{ ensp } " if ensp_sequence.nil?
                                      uniprot_sequence = UniProt.sequence(uniprot)
-                                     map = Structure.sequence_map(uniprot_sequence, ensp_sequence)
+                                     map = SmithWaterman.alignment_map(uniprot_sequence, ensp_sequence)
 
                                      Misc.zip_fields(values).each do |change,vid|
                                        match = change.match(/^([A-Z])(\d+)([A-Z])$/)
@@ -94,4 +98,91 @@ module Proteomics
                                        UniProt.annotated_variants.tsv(:key_field => "UniProt Variant ID", :fields => fields, :persist => true, :type => :double, :zipped => true, :unnamed => true).to_list
                                      end
   end
+  
+  Proteomics.add_annotator("UniProt", "UniProt Features", "UniProt Feature locations", "UniProt Feature Descriptions") do |isoform,residue,organism|
+    @iso2uni ||= {}
+    @iso2sequence ||= {}
+    iso2uni = @iso2uni[organism] ||= Organism.protein_identifiers(organism).index(:target => "UniProt/SwissProt Accession", :persist => true, :unnamed => true)
+    iso2sequence = @iso2sequence[organism] ||= Organism.protein_sequence(organism).tsv(:type => :single, :persist => true, :unnamed => true)
+
+    uniprot = iso2uni[isoform]
+    next if uniprot.nil?
+    sequence = iso2sequence[isoform]
+    next if sequence.nil?
+
+    _other = {:uniprot => uniprot, :sequence => sequence}
+    features = Proteomics.corrected_uniprot_features(uniprot, sequence)
+
+    next if features.empty?
+
+    overlapping = [[],[],[]]
+
+    case residue
+    when Fixnum
+      start = eend = residue
+    when /(\d+):(.*)/
+      start = $1.to_i
+      eend = $2.to_i
+    else
+      raise "Format of residue not understood: #{residue.inspect}"
+    end
+
+    features.select{|info|
+      case info[:type]
+      when "VAR_SEQ", "CONFLICT", "CHAIN", "UNSURE"
+        false
+      when "DISULFID", "CROSSLNK", "VARIANT"
+        ([info[:start], info[:end]] & [start, eend]).any?
+      else
+        (info[:start].to_i <= eend || eend == -1) and info[:end].to_i >= start
+      end
+    }.each{|info|
+      description = (info[:description] || "").strip.sub(/\.$/,'')
+      overlapping[0] << info[:type]
+      overlapping[1] << [info[:start], info[:end]] * ":"
+      overlapping[2] << description.gsub('|','-').gsub(';','-')
+    }
+
+    next if overlapping.first.empty?
+
+    overlapping
+  end
+
+  add_annotator("variants", "UniProt Variant ID", "SNP ID",  "Type of Variant", "Disease") do |isoform,residue,organism|
+    @iso2uni ||= {}
+    @iso2sequence ||= {}
+    @annotations ||= Proteomics.UniProt_mutation_annotations
+    iso2uni = @iso2uni[organism] ||= Organism.protein_identifiers(organism).index(:target => "UniProt/SwissProt Accession", :persist => true, :unnamed => true)
+    iso2sequence = @iso2sequence[organism] ||= Organism.protein_sequence(organism).tsv(:type => :single, :persist => true, :unnamed => true)
+
+    uniprot = iso2uni[isoform]
+    next if uniprot.nil?
+    sequence = iso2sequence[isoform]
+    next if sequence.nil?
+
+    features =  Proteomics.corrected_uniprot_features(uniprot, sequence)
+
+    next if features.empty?
+
+    overlapping = [[],[],[],[]]
+
+    features.select{|info|
+      info[:type] == "VARIANT" and info[:start] == residue
+    }.each{|info|
+      if info[:description].match(/(VAR_\d+)/)
+        id = $1
+        next unless @annotations.include? id
+        overlapping[0] << id
+        annots = @annotations[id]
+        overlapping[1] << annots[2]
+        overlapping[2] << annots[1]
+        overlapping[3] << annots[3]
+      end
+    }
+
+    next if overlapping.first.empty?
+
+    overlapping
+  end
+
 end

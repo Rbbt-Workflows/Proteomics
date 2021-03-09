@@ -1,10 +1,27 @@
 module Proteomics
-  input :sequence, :text, "Protein sequence", nil, :required => true
+
+  def self.get_sequence(sequence, organism = Organism.default_code("Hsa"))
+    if sequence.length > 20
+      sequence.gsub(/\s/,'')
+    else
+      if m = sequence.match(/^(.*)(?:\?organism="|:)(.*)$/)
+        Proteomics.iso2seq(m[1], m[2].strip)
+      else
+        if isoform = Proteomics.gene2isoform(sequence, organism)
+          Proteomics.iso2seq(organism)[isoform]
+        else
+          sequence
+        end
+      end
+    end
+  end
+
+  input :sequence, :text, "Protein sequence (or protein/gene id)", nil, :required => true
   input :positions, :array, "Positions within protein sequence", nil, :required => true
   input :pdb, :string, "Option 1: Name of pdb to align (from rcsb.org)", nil
   input :pdbfile, :text, "Option 2: Content of pdb to align", nil
   def self.sequence_position_in_pdb(protein_sequence, protein_positions, pdb = nil, pdbfile = nil)
-    protein_sequence = protein_sequence.gsub(/\s/,'')
+    protein_sequence = get_sequence protein_sequence
     map = PDB.pdb_alignment_map(protein_sequence, pdb, pdbfile)
 
     protein_positions = [protein_positions] unless Array === protein_positions
@@ -21,11 +38,11 @@ module Proteomics
 
   input :chain, :string, "PDB chain", nil, :require => true
   input :positions, :array, "Position within PDB chain", nil, :require => true
-  input :sequence, :text, "Protein sequence", nil, :require => true
+  input :sequence, :text, "Protein sequence (or protein/gene id)", nil, :require => true
   input :pdb, :string, "Option 1: Name of pdb to align (from rcsb.org)", nil
   input :pdbfile, :text, "Option 2: Content of pdb to align", nil
   def self.pdb_chain_position_in_sequence(chain, positions, protein_sequence, pdb = nil, pdbfile = nil)
-    protein_sequence = protein_sequence.gsub(/\s/,'')
+    protein_sequence = get_sequence protein_sequence
     map = PDB.pdb_alignment_map(protein_sequence, pdb, pdbfile)
     chain_map = map[chain]
 
@@ -43,12 +60,11 @@ module Proteomics
 
 
   # In structure/pdb_alignment
-  input :sequence, :text, "Protein sequence"
+  input :sequence, :text, "Protein sequence (or protein/gene id)"
   input :pdb, :string, "Option 1: Name of pdb to align (from rcsb.org)", nil
   input :pdbfile, :text, "Option 2: Content of pdb to align", nil
-  def self.pdb_alignment_map(protein_sequence, pdb, pdbfile)
-    protein_sequence.gsub!(/\s/,'')
-
+  def self.pdb_alignment_map(protein_sequence, pdb = nil, pdbfile = nil)
+    protein_sequence = get_sequence protein_sequence
 
     map = PDB.pdb_alignment_map(protein_sequence, pdb, pdbfile)
 
@@ -87,18 +103,18 @@ module Proteomics
   end
   task :neighbour_map => :tsv 
 
-  input :sequence, :text, "Protein sequence", nil, :required => true
+  input :sequence, :text, "Protein sequence (or protein/gene id)", nil, :required => true
   input :positions, :array, "Positions inside sequence", nil, :required => true
   input :pdb, :string, "Option 1: Name of pdb to align (from rcsb.org)", nil
   input :pdbfile, :text, "Option 2: Content of pdb to align", nil
   input :chain, :string, "Check only a particular chain", nil
   input :distance, :float, "Distance", 5
-  def self.neighbours_in_pdb(sequence, positions, pdb = nil, pdbfile = nil, chain = nil, distance = 5)
-    sequence.gsub!(/\s/,'')
+  def self.neighbours_in_pdb(protein_sequence, positions, pdb = nil, pdbfile = nil, chain = nil, distance = 5)
+    protein_sequence = get_sequence protein_sequence
 
     neighbours_in_pdb = TSV.setup({}, :key_field => "Sequence position", :fields => ["Neighbours"], :type => :flat)
 
-    positions_in_pdb = Proteomics.sequence_position_in_pdb(sequence, positions, pdb, pdbfile)
+    positions_in_pdb = Proteomics.sequence_position_in_pdb(protein_sequence, positions, pdb, pdbfile)
 
     Log.debug "Position in PDB: #{Misc.fingerprint positions_in_pdb}"
 
@@ -113,7 +129,7 @@ module Proteomics
     neighbour_map = neighbour_map(distance, pdb, pdbfile)
 
     alignment_maps = {}
-    PDB.pdb_alignment_map(sequence, pdb, pdbfile).each do |chain, map|
+    PDB.pdb_alignment_map(protein_sequence, pdb, pdbfile).each do |chain, map|
       alignment_maps[chain] = map.invert
     end
     alignment_map = alignment_maps[chain]
@@ -129,6 +145,7 @@ module Proteomics
 
       all_neighbours_in_sequence = all_neighbours.collect do |n| 
         c, p = n.split(":")
+        next if alignment_maps[c].nil?
         alignment_maps[c][p.to_i]
       end.flatten.compact
       neighbours_in_pdb[position_in_sequence] = all_neighbours_in_sequence

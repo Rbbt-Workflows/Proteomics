@@ -1,6 +1,8 @@
+require 'rbbt/sources/organism'
 require 'Proteomics/identifiers'
 require 'Proteomics/neighbours'
-require 'rbbt/sources/organism'
+require 'Proteomics/annotators'
+require 'Proteomics/unfold'
 
 module Proteomics
 
@@ -8,24 +10,29 @@ module Proteomics
     isoform, residue = nil
 
     case
-    when (m = mi.match(/^(.*):([A-Z])(\d+)([A-Z])$/))
+    when (m = mi.match(/^([^:]*):([A-Z])(\d+)([A-Z])(?:#{FOLD_SEP}.*)?$/))
       next if m[2] == m[4]
       isoform = m[1]
       residue = m[3].to_i
-    when (m = mi.match(/^(.*):(\d+)$/))
+    when (m = mi.match(/^([^:]*):(\d+)(?:#{FOLD_SEP}.*)?$/))
       isoform = m[1]
       residue = m[2].to_i
     when mi.match(/:UTR/)
-    when (m = mi.match(/^(.*):([A-Z\*])(\d+)([A-Z\*]+)$/i))
+    when (m = mi.match(/^([^:]*):([A-Z\*])(\d+)([A-Z\*]+)(?:#{FOLD_SEP}.*)?$/i))
+    when (m = mi.match(/^(.*):([A-Z\*])(\d+)(?:FrameShift|Indel)\(([+\-A-Z*]*)\)(?:#{FOLD_SEP}.*)?$/))
+      isoform = m[1]
+      residue = m[3].to_i
+      substitution = m[4]
+      #if substitution[-1] == "*"
+      #  residue = [residue, -1] * ":"
+      #else
+      #  residue = [residue.to_s, (residue + substitution.length - 1).to_s] * ":"
+      #end
     else
       raise "Unknown mutated isoform: #{mi}"
     end
 
-    if isoform[0..3] != "ENSP"
-      mi = Proteomics.name2pi(mi, organism)
-      next if mi.nil?
-      isoform = mi.split(":").first
-    end if isoform
+    isoform = Proteomics.gene2isoform(isoform, organism) if isoform && isoform[0..3] != "ENSP"
 
     [isoform, residue]
   end
@@ -53,15 +60,16 @@ module Proteomics
       pdbs = []
       ns = []
       n.each do |r,v|
-        _p,_pos,pdb,n = v
-        next if n.empty?
-        pdbs << pdb
-        ns << n.split(";")
+        Misc.zip_fields(v).each do |_p,_pos,pdb,n|
+          next if n.empty?
+          pdbs << pdb
+          ns << n.split(";")
+        end
       end
 
       next if ns.empty?
 
-      [mi, [residue, pdbs, ns]]
+      [mi, [residue, pdbs, ns.flatten.uniq]]
     end
   end
 
@@ -93,4 +101,60 @@ module Proteomics
       [mi, Misc.zip_fields(all_annots)]
     end
   end
+
+  input :mutated_isoforms, :array, "Mutated Isoform", nil, :stream => true, :required => true
+  input :organism, :string, "Organism code", Organism.default_code("Hsa")
+  input :database, :select, "Database of annotations", "UniProt", :select_options => ANNOTATORS.keys
+  task :annotate_mi => :tsv do |mis,organism,database|
+
+    annotator = ANNOTATORS[database]
+    raise ParameterException, "Database not identified: #{ database }" if annotator.nil?
+    annotator.organism = organism
+
+    cpus = config :cpus, :annotate_mi, :annotate, :proteomics, :Proteomics, :default => 2
+
+    mi_annotations = TSV::Dumper.new :key_field => "Mutated Isoform", :fields => annotator.fields, :type => :double, :namespace => organism
+    mi_annotations.init
+    TSV.traverse mis, :cpus => cpus, :bar => self.progress_bar("Annot. #{ database }"), :into => mi_annotations, :type => :array do |mi|
+
+      isoform, residue = parse_mi(mi)
+      
+      next if isoform.nil?
+
+      annotations = annotator.annotate isoform, residue, organism
+      next if annotations.nil?
+
+      [mi, annotations]
+    end
+  end
+
+
+
+  dep :mi_neighbours
+  input :organism, :string, "Organism code", Organism.default_code("Hsa")
+  input :database, :select, "Database of annotations", "UniProt", :select_options => ANNOTATORS.keys
+  task :annotate_mi_neighbours => :tsv do |organism,database|
+
+    stream = Misc.open_pipe do |sin|
+      dumper = TSV::Dumper.new :key_fields => "Mutated Isoform", :fields =>  ["Neighbours"],:type => :flat, :namespace => organism
+      dumper.init
+      TSV.traverse step(:mi_neighbours), :into => dumper do |mi,values|
+        mi = mi.first if Array === mi
+        isoform = mi.split(":").first
+        residue, pdbs, ns = values
+        neighbours = ns.collect{|pos| [isoform, pos] * ":"}
+        neighbours.extend MultipleResult
+        [mi, neighbours]
+      end
+      Misc.consume_stream(dumper.stream, false, sin)
+      sin.close
+    end
+
+    Proteomics.unfold_traverse(stream, Proteomics, :annotate_mi, :mutated_isoforms, :database => database, :organism => organism, :unfold_field => "Neighbour") do |mi,nmi,values|
+      values[0] = nmi.split(":").last.scan(/\d+/).first
+      values.collect{|l| Array === l ? l * "|" : l }
+    end
+  end
+
+
 end

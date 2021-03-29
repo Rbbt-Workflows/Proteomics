@@ -30,5 +30,5 @@ databases = %w(Appris InterPro UniProt variants)
 require 'rbbt/workflow'
 Workflow.require_workflow "Proteomics"
 databases.each do |database|
- Proteomics.job(:annotate_mi, "BOOTSTRAP", :database  => database, :mutated_isoforms => ["BRCA1:M1652I"] ).run
+ Proteomics.job(:annotate_mi, "BOOTSTRAP", :database  => database, :mutated_isoforms => ["BRCA1:M1652I"] ).exec
 end

@@ -3,6 +3,7 @@ Proteomics=/$PWD filter="*.rb *.rake Rakefile *.rdoc *.R *.sh *.js *.haml *.sass
  bin=bin filter="*"{
  }
  lib=lib {
+  sinatra.rb
   rbbt=rbbt{
    sources=sources{
     interactome_3d.rb
@@ -41,5 +42,19 @@ Proteomics=/$PWD filter="*.rb *.rake Rakefile *.rdoc *.R *.sh *.js *.haml *.sass
   test_helper.rb
  }
  data=data filter="*"{
+ }
+ share=share{
+  rbbt_commands=rbbt_commands filter="*"{
+   bootstrap
+  }
+ }
+ www=www{
+  views=views{
+   tasks.haml
+   entity=entity{
+    MutatedIsoform.haml
+    Protein.haml
+   }
+  }
  }
 }

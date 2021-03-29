@@ -1,5 +1,3 @@
-Workflow.require_workflow 'COSMIC'
-
 module Proteomics
 
   def self.COSMIC_residues
@@ -52,25 +50,28 @@ module Proteomics
   end
 
   def self.COSMIC_resistance_mutations
-    @@COSMIC_resistance_mutations ||= begin
-                                        fix_change = lambda{|line|
-                                          if line[0] == "#"
-                                            line
-                                          else
-                                            mi, *rest = line.chomp.split("\t", -1)
-                                            re = mi.match(/^(.*):([A-Z*?])(\d+)([A-Z*?]+)$/)
-                                            raise TSV::Parser::SKIP_LINE if re.nil?
+    @@COSMIC_resistance_mutations ||= Persist.persist_tsv(COSMIC.mi_drug_resistance, "COSMIC:resistance_mutations", {}, :serializer => :double, :persist => true ) do |data|
+      fix_change = lambda{|line|
+        if line[0] == "#"
+          line
+        else
+          mi, *rest = line.chomp.split("\t", -1)
+          re = mi.match(/^(.*):([A-Z*?])(\d+)([A-Z*?]+)$/)
+          raise TSV::Parser::SKIP_LINE if re.nil?
 
-                                            isoform = re[1]
-                                            residue = re[3]
-                                            key = [isoform, residue] * ":"
+          isoform = re[1]
+          residue = re[3]
+          key = [isoform, residue] * ":"
 
-                                            rest.unshift key
-                                            rest * "\t"
-                                          end
-                                        }
-                                        COSMIC.mi_drug_resistance.tsv :fix => fix_change, :merge => true, :persist => true, :unnamed => true
-                                      end
+          rest.unshift key
+          rest * "\t"
+        end
+      }
+      tsv = COSMIC.mi_drug_resistance.tsv :fix => fix_change, :merge => true, :unnamed => true
+      data.merge!(tsv)
+      tsv.annotate(data)
+      data
+    end
   end
 
 
@@ -96,21 +97,21 @@ module Proteomics
 
   def self.COSMIC_complete_gene_expression
     @@COSMIC_complete_gene_expression ||= begin
-                                Persist.persist_tsv(COSMIC.geneExpression, nil, {:key_field => "Sample name:Ensembl Protein ID", :fields => ["Regulation"]}, {:persist => true, :serializer => :single}) do |data|
-                                  organism = "Hsa/feb2014"
-                                  enst2ensp = Organism.transcripts(organism).tsv :key_field => "Ensembl Transcript ID", :fields => ["Ensembl Protein ID"], :merge => true, :type => :flat, :persist => true
+                                            Persist.persist_tsv(COSMIC.geneExpression, nil, {:key_field => "Sample name:Ensembl Protein ID", :fields => ["Regulation"]}, {:persist => true, :serializer => :single}) do |data|
+                                              organism = "Hsa/feb2014"
+                                              enst2ensp = Organism.transcripts(organism).tsv :key_field => "Ensembl Transcript ID", :fields => ["Ensembl Protein ID"], :merge => true, :type => :flat, :persist => true
 
-                                  TSV.traverse COSMIC.geneExpression, :bar => true, :type => :double, :cpus => 10 do |sample, values|
-                                    transcripts, exprs = values
-                                    proteins = enst2ensp.chunked_values_at transcripts
-                                    res = []
-                                    proteins.zip(exprs).each do |ensp,expr|
-                                      key = [sample, ensp] * ":"
-                                      data[key] = expr
-                                    end
-                                  end
-                                end
-                              end
+                                              TSV.traverse COSMIC.geneExpression, :bar => true, :type => :double, :cpus => 10 do |sample, values|
+                                                transcripts, exprs = values
+                                                proteins = enst2ensp.chunked_values_at transcripts
+                                                res = []
+                                                proteins.zip(exprs).each do |ensp,expr|
+                                                  key = [sample, ensp] * ":"
+                                                  data[key] = expr
+                                                end
+                                              end
+                                            end
+                                          end
   end
 
   add_annotator("COSMIC", "Genomic Mutation", 'Sample name', 'Primary site', 'Site subtype 1', 'Site subtype 2', 'Site subtype 3', 'Primary histology', 'Histology subtype 1', 'Histology subtype 2', 'Histology subtype 3', "PMID") do |isoform, residue, organism|

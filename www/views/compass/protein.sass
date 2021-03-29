@@ -1,0 +1,30 @@
+@import 'screen_sizes'
+@import 'elements/tool'
+
+dd > select
+  @media #{$only-large}
+    width: 300px
+
+ul.controls, ul.highlight
+  width: auto
+  li
+    display: inline-block
+
+div.sequence_tool
+  overflow: auto
+  &>span
+    overflow: auto
+    display: inline-block
+
+.protein_tool
+  +tool
+  dl.show + *
+    .JMol
+      +shrinking(up)
+      z-index: -1
+      +opacity(0)
+
+dl.pdb_info
+  & > dt, & > dd
+    max-width: 35em !important
+

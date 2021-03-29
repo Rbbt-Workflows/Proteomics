@@ -1,7 +1,6 @@
 require 'rbbt-util'
 require 'rbbt/sources/organism'
 require 'rbbt/workflow'
-Workflow.require_workflow "Appris"
 
 module Proteomics
   def self.uni2iso(organism = Organism.default_code("Hsa"))
@@ -52,7 +51,7 @@ module Proteomics
     if perfect_principal_isoforms.any?
       protein = perfect_principal_isoforms.first
     elsif uni_pricipal_isoforms.any?
-      protein = uni_pricipal_isoforms
+      protein = uni_pricipal_isoforms.first
     elsif perfect_isoforms.any?
       protein = perfect_isoforms.first
     elsif principal_isoforms.any?
@@ -62,19 +61,6 @@ module Proteomics
     end
 
     return nil if protein.nil? or protein.empty?
-    perfect_principal_isoforms = uni_pricipal_isoforms & perfect_isoforms
-
-    if perfect_principal_isoforms.any?
-      protein = perfect_principal_isoforms.first
-    elsif uni_pricipal_isoforms.any?
-      protein = uni_pricipal_isoforms
-    elsif perfect_isoforms.any?
-      protein = perfect_isoforms.first
-    elsif principal_isoforms.any?
-      protein = principal_isoforms.first
-    else
-      protein = gene_isoforms.first
-    end
 
     protein
   end

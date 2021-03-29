@@ -1,0 +1,18 @@
+- require 'rbbt/knowledge_base/COSMIC'
+
+- entity_card = EntityCard.new(entity)
+- entity_card.name = entity
+- entity_card.long_name = "#{entity.gene.name} Protein Isoform"  if entity.gene
+- entity_card.meta do
+  %dl
+    %dt Gene
+    %dd= entity.gene.ensembl.link
+
+    %dt Uniprot
+    %dd
+      %a(href="http://www.uniprot.org/uniprot/#{entity.uniprot}")= entity.uniprot
+
+- entity_card.action_controller = default_action_controller entity
+
+= entity_card_render entity_card do
+  = tool :protein_tool, :protein => entity

@@ -7,7 +7,7 @@ $0 = "rbbt #{$previous_commands*" "} #{ File.basename(__FILE__) }" if $previous_
 
 options = SOPT.setup <<EOF
 
-Cache all PDB files from all proteins
+Bootstrap Proteomics pipelines
 
 $ #{$0} [options] <filename.tsv|->
 
@@ -25,4 +25,10 @@ if options[:help]
   exit 0
 end
 
+databases = %w(Appris InterPro UniProt variants)
 
+require 'rbbt/workflow'
+Workflow.require_workflow "Proteomics"
+databases.each do |database|
+ Proteomics.job(:annotate_mi, "BOOTSTRAP", :database  => database, :mutated_isoforms => ["BRCA1:M1652I"] ).run
+end

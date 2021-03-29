@@ -121,10 +121,10 @@ module Proteomics
     if chain.nil?
       possible_positions = positions_in_pdb.collect.reject{|c,p| p.nil? }
       raise "No matched chain positions" if possible_positions.empty?
-      chain =  possible_positions.sort_by{|c,p| p.length}.first.first
+      chain =  possible_positions.sort_by{|c,p| p.compact.length }.first.first
     end
 
-    return neighbours_in_pdb if positions_in_pdb.nil? or positions_in_pdb[chain].nil?
+    return neighbours_in_pdb if positions_in_pdb.nil? || positions_in_pdb[chain].nil? || positions_in_pdb[chain].compact.empty?
 
     neighbour_map = neighbour_map(distance, pdb, pdbfile)
 

@@ -1,7 +1,5 @@
 require 'rbbt/tools/ssw'
 
-Workflow.require_workflow "InterPro"
-
 module Proteomics
 
   def self.interpro_protein_domains

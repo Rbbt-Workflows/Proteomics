@@ -70,45 +70,78 @@ module Proteomics
       Structure.score_mi(values)
     end
 
-    wizard_res.reorder "Mutated Isoform", "Score"
+    if wizard_res.key_field == "Genomic Mutation"
+      wizard_res.slice ["Mutated Isoform", "Score"]
+    else
+      wizard_res.slice ["Score"]
+    end
   end
   
   dep :scores
   task :score_summary => :tsv do 
     scores = step(:scores)
     wizard = scores.step(:wizard)
+
+    organism = recursive_inputs[:organism]
+
     wizard_res = wizard.load
     scores_res = scores.load
 
+    by_dna = wizard_res.key_field == "Genomic Mutation"
 
-    require 'rbbt/sources/clinvar'
-    Workflow.require_workflow "DbNSFP"
-    Workflow.require_workflow "Pandrugs"
+    #if by_dna
+    #  wizard_res = wizard_res.reorder "Mutated Isoform", wizard_res.fields
+    #  scores_res = scores_res.reorder "Mutated Isoform", scores_res.fields
+    #end
 
+    mis = wizard_res.keys
 
-    clinvar = ClinVar.mi_summary.tsv :fields => ["ClinicalSignificance"], :type => :single, :persist => true
-    interfaces = wizard.file('interfaces').tsv
-    dbNSFP = DbNSFP.job(:annotate, nil, :mutations => wizard_res.keys).run
-    cosmic = wizard.file('COSMIC').tsv
-    cosmic_neighbours = wizard.file('COSMIC neighbours').tsv
-    appris = wizard.file('Appris').tsv
-    appris_neighbours = wizard.file('Appris neighbours').tsv
-    uniprot = wizard.file('UniProt').tsv
-    uniprot_neighbours = wizard.file('UniProt neighbours').tsv
+    build = Organism.hg_build(organism)
+
+    clinvar = ClinVar[build].mi_summary.tsv :fields => ["ClinicalSignificance"], :type => :single, :persist => true, :monitor => true
+
+    if by_dna
+      interfaces = wizard.step('dna_interfaces').load
+      cosmic = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna" && dep.inputs[:database] == 'COSMIC' }
+      cosmic_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna_neighbours" && dep.inputs[:database] == 'COSMIC' }
+      appris = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna" && dep.inputs[:database] == 'Appris' }
+      appris_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna_neighbours" && dep.inputs[:database] == 'Appris' }
+      uniprot = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna" && dep.inputs[:database] == 'UniProt' }
+      uniprot_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna_neighbours" && dep.inputs[:database] == 'UniProt' }
+    else
+      interfaces = wizard.step('mi_interfaces').load
+      cosmic = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi" && dep.inputs[:database] == 'COSMIC' }
+      cosmic_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'COSMIC' }
+      appris = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi" && dep.inputs[:database] == 'Appris' }
+      appris_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'Appris' }
+      uniprot = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi" && dep.inputs[:database] == 'UniProt' }
+      uniprot_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'UniProt' }
+    end
+
+    dbNSFP = DbNSFP.job(:annotate, nil, :mutations => mis).run
+
     predictors = %w(SIFT Polyphen2_HDIV Polyphen2_HVAR MutationTaster MutationAssessor FATHMM LRT VEST3 CADD )
     thresholds = %w( <0.05 >0.957,0.453 >0.909,0.447 >0.5 >3.5,1.9 <-1.5 - >0.8 >3.5   )
 
     fields = %w(Score CV #CS FL MR MUT DT PPI DP)
     tsv = TSV.setup({}, :key_field => "Mutated Isoform", :fields => fields, :type => :list, :namespace => wizard_res.namespace)
 
-    scores_res.each do |mutation, score|
+    scores_res.each do |key, values|
+      if by_dna
+        mi, score = values
+      else
+        score = values.first
+        mi = key
+      end
+
       values = []
-      ensp, _sep, change = mutation.partition(":") 
+      ensp, _sep, change = mi.partition(":") 
       next unless ensp =~ /^ENSP/
 
       damage_count = 0
       total_preds = 0
-      dvalues = dbNSFP[mutation]
+      dvalues = dbNSFP[mi]
+
       if dvalues
         predictors.each_with_index do |predictor,i|
           next if predictor == "LRT"
@@ -144,21 +177,21 @@ module Proteomics
 
       values << score.flatten.first
 
-      if clinvar.include? mutation and clinvar[mutation] == "Pathogenic"
+      if clinvar.include? mi and clinvar[mi] == "Pathogenic"
         values << "Yes"
       else
         values << "No"
       end
 
-      if cosmic.include? mutation
-        count = cosmic[mutation]["Sample name"].length
+      if cosmic.include? key
+        count = cosmic[key]["Sample name"].length
       else
         count = 0
       end
 
-      if cosmic_neighbours.include?(mutation) && ! cosmic_neighbours[mutation]["Sample name"].nil?
+      if cosmic_neighbours.include?(key) && ! cosmic_neighbours[key]["Sample name"].nil?
         begin
-          ncount = cosmic_neighbours[mutation]["Sample name"].collect{|l| l.split(";")}.flatten.uniq.length
+          ncount = cosmic_neighbours[key]["Sample name"].collect{|l| l.split(";")}.flatten.uniq.length
         rescue Exception
           raise $!
         end
@@ -169,14 +202,14 @@ module Proteomics
       values << "#{count} (#{ncount})"
 
 
-      if appris.include? mutation
-        count = Misc.zip_fields(appris[mutation]).select{|type,lig| type =~ /firestar/}.length
+      if appris.include? key
+        count = Misc.zip_fields(appris[key]).select{|type,lig| type =~ /firestar/}.length
       else
         count = 0
       end
 
-      if appris_neighbours.include? mutation
-        ncount = Misc.zip_fields(appris_neighbours[mutation]).select{|res,type,lig| type =~ /firestar/}.length
+      if appris_neighbours.include? key
+        ncount = Misc.zip_fields(appris_neighbours[key]).select{|res,type,lig| type =~ /firestar/}.length
       else
         ncount = 0
       end
@@ -184,49 +217,49 @@ module Proteomics
 
 
 
-      if uniprot.include? mutation
-        count = Misc.zip_fields(uniprot[mutation]).select{|feat,loc,desc| feat =~ /MOD_RES/}.length
+      if uniprot.include? key
+        count = Misc.zip_fields(uniprot[key]).select{|feat,loc,desc| feat =~ /MOD_RES/}.length
       else
         count = 0
       end
 
-      if uniprot_neighbours.include? mutation
-        ncount = Misc.zip_fields(uniprot_neighbours[mutation]).select{|res,feat,loc,desc| feat =~ /MOD_RES/}.length
+      if uniprot_neighbours.include? key
+        ncount = Misc.zip_fields(uniprot_neighbours[key]).select{|res,feat,loc,desc| feat =~ /MOD_RES/}.length
       else
         ncount = 0
       end
 
       values << "#{count == 0 ? "No" : "Yes"} (#{ncount})"
 
-      if uniprot.include? mutation
-        count = Misc.zip_fields(uniprot[mutation]).select{|feat,loc,desc| feat =~ /MUTAGEN/}.length
+      if uniprot.include? key
+        count = Misc.zip_fields(uniprot[key]).select{|feat,loc,desc| feat =~ /MUTAGEN/}.length
       else
         count = 0
       end
 
-      if uniprot_neighbours.include? mutation
-        ncount = Misc.zip_fields(uniprot_neighbours[mutation]).select{|res,feat,loc,desc| feat =~ /MUTAGEN/}.length
+      if uniprot_neighbours.include? key
+        ncount = Misc.zip_fields(uniprot_neighbours[key]).select{|res,feat,loc,desc| feat =~ /MUTAGEN/}.length
       else
         ncount = 0
       end
 
       values << "#{count == 0 ? "No" : "Yes"} (#{ncount})"
 
-      if Pandrugs.knowledge_base.subset('gene_drugs', :source => [mutation.protein.gene], :target => :all).filter(:target_marker => 'target').filter(:status => "Approved").length > 0
+      if Pandrugs.knowledge_base.subset('gene_drugs', :source => [mi.protein.gene], :target => :all).filter(:target_marker => 'target').filter(:status => "Approved").length > 0
         values << "Yes"
       else
         values << "No"
       end
 
-      values << interfaces.include?(mutation) ? "Yes" : "No"
+      values << interfaces.include?(mi) ? "Yes" : "No"
 
-      if dbNSFP.include? mutation
+      if dbNSFP.include? mi
         values << "#{damage_count} of 8"
       else
         values << "NA"
       end
     
-      tsv[mutation] = values
+      tsv[mi] = values
     end
 
     tsv

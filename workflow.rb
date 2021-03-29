@@ -1,9 +1,17 @@
 require 'rbbt-util'
 require 'rbbt/workflow'
+require 'rbbt/sources/clinvar'
 
 Misc.add_libdir if __FILE__ == $0
 
 Workflow.require_workflow "Appris"
+Workflow.require_workflow 'COSMIC'
+Workflow.require_workflow "InterPro"
+Workflow.require_workflow "DbNSFP"
+Workflow.require_workflow "Pandrugs"
+
+
+
 
 module Proteomics
   extend Workflow

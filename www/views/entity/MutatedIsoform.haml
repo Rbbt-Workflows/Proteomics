@@ -1,0 +1,102 @@
+- entity = entity.normalized
+- entity_card = EntityCard.new(entity)
+
+- entity_card.name = "MutatedIsoform"
+- entity_card.long_name = entity.name
+
+- entity_card.meta do
+  %dl
+    - if entity.protein
+      %dt Protein
+      %dd= entity.protein.link
+
+    - if entity.protein.gene
+      %dt Gene
+      %dd= entity.protein.gene.link
+
+    %dt Consequence
+    %dd= entity.consequence
+
+    %dt Change
+    %dd= entity.change
+
+    %dt Damaged? (based on RadialSVM score or truncating mutations)
+    %dd= entity.damaged? ? "true" : "false"
+
+    - if entity.truncated
+      - ablated_domains = entity.ablated_domain_positions
+      - if ablated_domains.any?
+        %dt Ablated IntePro domains
+        %dd
+          %ul.clean_list
+            - ablated_domains.each do |domain,s,e|
+              %li
+                - InterProDomain.setup(domain, entity.organism)
+                - pfam = domain.pfam
+                - if pfam
+                  == #{domain.link} (#{pfam.link pfam}) [#{s} - #{e}]
+                - else
+                  == #{domain.link} [#{s} - #{e}]
+
+    -#%dt DbNSFP RadialSVM score (damaged if above 0)
+    -#%dd= entity.dbnsfp_radialSVM_score || "NA"
+
+    - if defined? DbNSFP
+      %dt Mutation Assessor (damaged if above 1.938)
+      %dd= entity.mutation_assessor_scores || "NA"
+
+      %dt SIFT (p-value; damaged if close to 0)
+      %dd= entity.sift_scores || "NA"
+
+- entity_card.action_controller = default_action_controller entity
+
+= entity_card_render entity_card  do
+  - protein = entity.protein
+  - sequence = protein.sequence
+  .secondary_structure.active.very.basic.ui.segment
+    .svg(data-sequence_length='#{sequence.length}')
+      - log :svg, "Downloading SVG"
+      - begin
+        :sass
+          .secondary_structure .svg svg
+            border: solid 1px #EEE
+        = protein.marked_svg
+      - rescue Exception
+        %p.error.ui.message
+          Could not download protein SVG, try again later. 
+          %pre=$!.message
+    .sequence(style='width: 687px; padding: 10px; overflow-x: auto;font-family: monospace;margin-left:113px;margin-top:-10px;background-color:white; border: solid 1px #EEE')
+      %span.sequence(width="100%")= sequence
+      %span.marks(width="100%")
+        - size = sequence.length
+        - marks = size / 10
+        - str = ""
+        - marks.times do |mark|
+          - txt = "|"
+          - str << ("_" * (10 - txt.length)) << txt
+        = str
+      %span.counts(width="100%")
+        - size = sequence.length
+        - marks = size / 10
+        - str = ""
+        - marks.times do |mark|
+          - mark = (mark + 1) * 10
+          - txt = mark.to_s
+          - str << ("_" * (10 - txt.length)) << txt
+        = str
+      %p.scroll.ui.message 
+        Scroll horizontaly across the sequence
+
+
+
+  :deferjs
+    require_js(["/js-find/rbbt.protein_tool.js"], function(){
+      var position = #{entity.position}
+
+      var sequence_elem = $('.secondary_structure > .sequence')
+      var svg_elem = $('.secondary_structure > .svg')
+
+      rbbt.sequence.mark_position(sequence_elem, position, 'red')
+      rbbt.svg.mark_position(svg_elem, position, 'red')
+      
+    })

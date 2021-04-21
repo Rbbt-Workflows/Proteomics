@@ -32,7 +32,7 @@ module Proteomics
       raise "Unknown mutated isoform: #{mi}"
     end
 
-    isoform = Proteomics.gene2isoform(isoform, organism) if isoform && isoform[0..3] != "ENSP"
+    isoform = Proteomics.gene2isoform(isoform, organism) if isoform && isoform !~ /^ENS[A-Z]*P/
 
     [isoform, residue]
   end
@@ -133,7 +133,8 @@ module Proteomics
   dep :mi_neighbours
   input :organism, :string, "Organism code", Organism.default_code("Hsa")
   input :database, :select, "Database of annotations", "UniProt", :select_options => ANNOTATORS.keys
-  task :annotate_mi_neighbours => :tsv do |organism,database|
+  input :simplify, :boolean, "Simplify output lists", false
+  task :annotate_mi_neighbours => :tsv do |organism,database,simplify|
 
     stream = Misc.open_pipe do |sin|
       dumper = TSV::Dumper.new :key_fields => "Mutated Isoform", :fields =>  ["Neighbours"],:type => :flat, :namespace => organism
@@ -150,7 +151,7 @@ module Proteomics
       sin.close
     end
 
-    Proteomics.unfold_traverse(stream, Proteomics, :annotate_mi, :mutated_isoforms, :database => database, :organism => organism, :unfold_field => "Neighbour") do |mi,nmi,values|
+    Proteomics.unfold_traverse(stream, Proteomics, :annotate_mi, :mutated_isoforms, :database => database, :organism => organism, :unfold_field => "Neighbour", :simplify => simplify) do |mi,nmi,values|
       values[0] = nmi.split(":").last.scan(/\d+/).first
       values.collect{|l| Array === l ? l * "|" : l }
     end

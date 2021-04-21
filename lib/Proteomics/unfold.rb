@@ -2,7 +2,7 @@ module Proteomics
   FOLD_SEP = "··"
   FOLD_SEP2 = "·##·"
   def self.unfold_traverse(stream, workflow, task, input = nil, other_inputs = {}, &block)
-    key_field, unfold_field = Misc.process_options other_inputs, :key_field, :unfold_field
+    key_field, unfold_field, simplify = Misc.process_options other_inputs, :key_field, :unfold_field, :simplify
     unfolded_stream = Misc.open_pipe do |sin|
       TSV.traverse stream, :into => sin do |key,values|
         key = key.first if Array === key
@@ -56,7 +56,12 @@ module Proteomics
 
       next unless current_values[folded_key].compact.length == total.to_i
         
-      res = [folded_key, Misc.zip_fields(current_values[folded_key])]
+      if simplify
+        simple = Misc.zip_fields(current_values[folded_key]).collect{|l| l.compact.collect{|v| v.split(/[|;,]/)}.flatten.uniq }
+        res = [folded_key, simple]
+      else
+        res = [folded_key, Misc.zip_fields(current_values[folded_key])]
+      end
 
       current_values.delete(folded_key)
 

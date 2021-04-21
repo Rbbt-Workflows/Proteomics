@@ -2,17 +2,18 @@ require 'rbbt/tools/ssw'
 
 module Proteomics
 
-  def self.interpro_protein_domains
-    @interpro_protein_domains ||= InterPro.protein_domains.tsv :persist => true, :unnamed => true
+  def self.interpro_protein_domains(organism)
+    @interpro_protein_domains ||= InterPro.protein_domains(organism).tsv :persist => true, :unnamed => true
   end
 
-  def self.corrected_interpro_features(uniprot, sequence)
+  def self.corrected_interpro_features(uniprot, sequence, organism)
+    features = interpro_protein_domains(organism)[uniprot]
+    return [] if features.nil? 
+
     uniprot_sequence = UniProt.sequence(uniprot)
 
     map = SmithWaterman.alignment_map(uniprot_sequence, sequence)
 
-    features = interpro_protein_domains[uniprot]
-    return [] if features.nil? 
     corrected_features = []
     Misc.zip_fields(features).each do |code,start,eend|
       corrected_start = map[start.to_i]
@@ -40,8 +41,8 @@ module Proteomics
     next if sequence.nil?
 
     features =  Misc.insist do
-      Persist.persist("Corrected InterPro features", :marshal, :persist => true, :dir => cache(:corrected_interpro_features), :other => {:uniprot => uniprot, :sequence => sequence}) do
-        Proteomics.corrected_interpro_features(uniprot, sequence)
+      Persist.persist("Corrected InterPro features", :marshal, :persist => true, :update => true, :dir => cache(:corrected_interpro_features), :other => {:uniprot => uniprot, :sequence => sequence, :organism => organism}) do
+        Proteomics.corrected_interpro_features(uniprot, sequence, organism)
       end
     end
     next if features.empty?

@@ -42,7 +42,9 @@ module Proteomics
       p == _p
     }
 
-    principal_transcripts = (Appris::PRINCIPAL_TRANSCRIPTS & gene_transcripts)
+
+    appris_principal_transcripts = Appris.principal_transcripts_for_organism(organism).values.flatten.uniq
+    principal_transcripts = (appris_principal_transcripts & gene_transcripts)
     principal_isoforms = @@enst2ensp.values_at *principal_transcripts
     uni_pricipal_isoforms = principal_isoforms.select{|p| @@ensp2uni[p]}
 

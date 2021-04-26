@@ -245,9 +245,14 @@ module Proteomics
 
       values << "#{count == 0 ? "No" : "Yes"} (#{ncount})"
 
-      if Pandrugs.knowledge_base.subset('gene_drugs', :source => [mi.protein.gene], :target => :all).filter(:target_marker => 'target').filter(:status => "Approved").length > 0
-        values << "Yes"
-      else
+      begin
+        Workflow.require_workflow "Pandrugs"
+        if Pandrugs.knowledge_base.subset('gene_drugs', :source => [mi.protein.gene], :target => :all).filter(:target_marker => 'target').filter(:status => "Approved").length > 0
+          values << "Yes"
+        else
+          values << "No"
+        end
+      rescue
         values << "No"
       end
 

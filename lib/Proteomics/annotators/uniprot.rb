@@ -118,7 +118,7 @@ module Proteomics
     overlapping = [[],[],[]]
 
     case residue
-    when Fixnum
+    when Integer
       start = eend = residue
     when /(\d+):(.*)/
       start = $1.to_i

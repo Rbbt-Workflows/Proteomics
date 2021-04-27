@@ -41,7 +41,8 @@ module Proteomics
   input :organism, :string, "Organism code", Organism.default_code("Hsa")
   input :only_pdb, :boolean, "Only consider PDB neighbours", false
   input :just_one, :boolean, "Consider only neighbours from first PDB that contains them", true
-  task :mi_neighbours => :tsv do |mis,organism,only_pdb,just_one|
+  input :use_i3d, :boolean, "Use also i3d models", true
+  task :mi_neighbours => :tsv do |mis,organism,only_pdb,just_one,use_i3d|
 
     cpus =  config :cpus, :mi_neighbours, :neighbours, :proteomics, :Proteomics, :default => 2
 
@@ -53,7 +54,7 @@ module Proteomics
 
       next if isoform.nil?
 
-      n = Proteomics.neighbours(isoform, [residue], organism, 5, only_pdb, just_one)
+      n = Proteomics.neighbours(isoform, [residue], organism, 5, only_pdb, just_one, use_i3d)
 
       next if n.empty?
 
@@ -69,7 +70,7 @@ module Proteomics
 
       next if ns.empty?
 
-      [mi, [residue, pdbs, ns.flatten.uniq]]
+      [mi, [residue, pdbs.compact.uniq, ns.flatten.compact.uniq]]
     end
   end
 

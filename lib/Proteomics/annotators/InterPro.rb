@@ -3,7 +3,7 @@ require 'rbbt/tools/ssw'
 module Proteomics
 
   def self.interpro_protein_domains(organism)
-    @interpro_protein_domains ||= InterPro.protein_domains(organism).tsv :persist => true, :unnamed => true
+    @interpro_protein_domains ||= InterPro.protein_domains(organism).produce.tsv :persist => true, :unnamed => true
   end
 
   def self.corrected_interpro_features(uniprot, sequence, organism)

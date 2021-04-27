@@ -8,6 +8,7 @@ Workflow.require_workflow "Appris"
 Workflow.require_workflow 'COSMIC'
 Workflow.require_workflow "InterPro"
 Workflow.require_workflow "DbNSFP"
+Workflow.require_workflow "Sequence"
 #Workflow.require_workflow "Pandrugs"
 
 

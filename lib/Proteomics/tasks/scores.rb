@@ -67,7 +67,7 @@ module Proteomics
     wizard_res = wizard.load
 
     wizard_res.add_field "Score" do |mi, values|
-      Structure.score_mi(values)
+      Proteomics.score_mi(values)
     end
 
     if wizard_res.key_field == "Genomic Mutation"
@@ -102,20 +102,20 @@ module Proteomics
 
     if by_dna
       interfaces = wizard.step('dna_interfaces').load
-      cosmic = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna" && dep.inputs[:database] == 'COSMIC' }
-      cosmic_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna_neighbours" && dep.inputs[:database] == 'COSMIC' }
-      appris = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna" && dep.inputs[:database] == 'Appris' }
-      appris_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna_neighbours" && dep.inputs[:database] == 'Appris' }
-      uniprot = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna" && dep.inputs[:database] == 'UniProt' }
-      uniprot_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna_neighbours" && dep.inputs[:database] == 'UniProt' }
+      cosmic = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna" && dep.inputs[:database] == 'COSMIC' }.first.load
+      cosmic_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna_neighbours" && dep.inputs[:database] == 'COSMIC' }.first.load
+      appris = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna" && dep.inputs[:database] == 'Appris' }.first.load
+      appris_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna_neighbours" && dep.inputs[:database] == 'Appris' }.first.load
+      uniprot = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna" && dep.inputs[:database] == 'UniProt' }.first.load
+      uniprot_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna_neighbours" && dep.inputs[:database] == 'UniProt' }.first.load
     else
       interfaces = wizard.step('mi_interfaces').load
-      cosmic = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi" && dep.inputs[:database] == 'COSMIC' }
-      cosmic_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'COSMIC' }
-      appris = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi" && dep.inputs[:database] == 'Appris' }
-      appris_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'Appris' }
-      uniprot = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi" && dep.inputs[:database] == 'UniProt' }
-      uniprot_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'UniProt' }
+      cosmic = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi" && dep.inputs[:database] == 'COSMIC' }.first.load
+      cosmic_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'COSMIC' }.first.load
+      appris = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi" && dep.inputs[:database] == 'Appris' }.first.load
+      appris_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'Appris' }.first.load
+      uniprot = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi" && dep.inputs[:database] == 'UniProt' }.first.load
+      uniprot_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'UniProt' }.first.load
     end
 
     dbNSFP = DbNSFP.job(:annotate, nil, :mutations => mis).run
@@ -133,6 +133,8 @@ module Proteomics
         score = values.first
         mi = key
       end
+      
+      mi = mi.first if Array ===  mi
 
       values = []
       ensp, _sep, change = mi.partition(":") 
@@ -201,21 +203,18 @@ module Proteomics
 
       values << "#{count} (#{ncount})"
 
-
       if appris.include? key
-        count = Misc.zip_fields(appris[key]).select{|type,lig| type =~ /firestar/}.length
+        count = Misc.zip_fields(appris[key]).select{|type,lig| type !~ /wrong|damaged/}.length
       else
         count = 0
       end
 
       if appris_neighbours.include? key
-        ncount = Misc.zip_fields(appris_neighbours[key]).select{|res,type,lig| type =~ /firestar/}.length
+        ncount = Misc.zip_fields(appris_neighbours[key]).select{|res,type,range,lig| type !~ /wrong|damaged/}.collect{|res,type,range,lig| [type,range,lig]}.uniq.length
       else
         ncount = 0
       end
       values << "#{count == 0 ? "No" : "Yes"} (#{ncount})"
-
-
 
       if uniprot.include? key
         count = Misc.zip_fields(uniprot[key]).select{|feat,loc,desc| feat =~ /MOD_RES/}.length
@@ -247,12 +246,16 @@ module Proteomics
 
       begin
         Workflow.require_workflow "Pandrugs"
-        if Pandrugs.knowledge_base.subset('gene_drugs', :source => [mi.protein.gene], :target => :all).filter(:target_marker => 'target').filter(:status => "Approved").length > 0
+        ensp = mi.partition(":").first
+        gene = Proteomics.ensp2ensg[ensp]
+        if Pandrugs.knowledge_base.subset('gene_drugs', :source => [gene], :target => :all).filter(:target_marker => 'target').filter(:status => "Approved").length > 0
           values << "Yes"
         else
           values << "No"
         end
       rescue
+        Log.exception $!
+        Log.low "No Pandrugs"
         values << "No"
       end
 

@@ -76,7 +76,7 @@ module Proteomics
     @@appris_annotations[organism] ||= begin
                                          org, data = organism.split("/")
                                          build = Organism.GRC_build(organism)
-                                         protein_annotations = Appris[org][build].protein_annotations.tsv
+                                         protein_annotations = Appris[org][build].protein_annotations.produce.tsv
                                        end
   end
 

@@ -79,12 +79,14 @@ module Proteomics
   end
 
 
-  def self.neighbours(isoform, residues, organism = Organism.default_organism("Hsa"), distance = 5, only_pdb = false, just_one = true)
-    pdbs = PDB.isoform_uniprot_pdbs(isoform, organism)
-
-    sequence = iso2seq(organism)[isoform]
-
+  def self.neighbours(isoform, residues, organism = Organism.default_organism("Hsa"), distance = 5, only_pdb = false, just_one = true, use_i3d = true)
     tsv = TSV.setup({}, :key_field => "Isoform:residue", :fields => ["Ensembl Protein ID", "Residue", "PDB", "Neighbours"], :type => :double)
+
+    pdbs = PDB.isoform_uniprot_pdbs(isoform, organism).keys
+
+    pdbs += pdbs + PDB.isoform_i3d_pdbs(isoform, organism).column("URL").values.flatten if use_i3d
+    
+    sequence = iso2seq(organism)[isoform]
 
     return tsv if sequence.nil?
 

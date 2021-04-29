@@ -4,7 +4,7 @@ include Sinatra::RbbtToolHelper
 require 'rbbt-util'
 require 'rbbt/workflow'
 
-require 'rbbt/entity/structure'
+#require 'rbbt/entity/structure'
 
 require 'rbbt/entity/gene'
 require 'rbbt/entity/mutated_isoform'

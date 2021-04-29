@@ -83,6 +83,7 @@
 - TSV.setup(feature_counts, :key_field => "Feature", :fields => ["Counts"], :type => :single, :namespace => organism)
 - header "Binomial Significance", NumericValue
 
+- iif feature_counts
 .responsive_flexible_columns
   = table :page => "1~Binomial Significance", :table_id => "Most affected features in COSMIC for #{ name }" do
     - tsv = feature_counts.to_list.add_field "Binomial Significance" do |feature,v|

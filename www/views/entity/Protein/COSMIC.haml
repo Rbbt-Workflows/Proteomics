@@ -105,7 +105,8 @@
     - interfaces = Proteomics.job(:dna_interfaces, nil, :mutations => mutations, :organism => organism, :watson => false, :principal => true).run
     - header "Partner protein", "Protein"
     = table :table_id => "Affected #{name} PPIs from COSMIC mutations" do
-      - counts = Misc.counts(interfaces.column("Partner (Ensembl Protein ID)").values.flatten.uniq)
+      - partners = interfaces.column("Partner (Ensembl Protein ID)").values.flatten.collect{|v| v.split(";") }.flatten
+      - counts = Misc.counts(partners)
       - TSV.setup(counts, :key_field => "Partner protein", :fields => ["Counts"], :type => :single, :namespace => organism)
 
 - header "Genomic Mutation", GenomicMutation, :watson => false

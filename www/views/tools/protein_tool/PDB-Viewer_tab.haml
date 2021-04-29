@@ -1,20 +1,22 @@
 
 - uni2name = Organism.identifiers(protein.organism).index :target => "Associated Gene Name", :persist => true, :fields => ["UniProt/SwissProt Accession"]
 
-- if uniprot and Proteomics::I3D_PROTEINS.include? uniprot
-  - filepos = Proteomics::I3D_PROTEINS.identify_field "FILENAME"
+- i3d_proteins = Interactome3d.proteins_tsv.tsv :persist => true
+- i3d_interations = Interactome3d.interactions_tsv.tsv :persist => true
+- if uniprot and i3d_proteins.include? uniprot
+  - filepos = i3d_proteins.identify_field "FILENAME"
   - interactome_protein_pdbs = {}
-  - Proteomics::I3D_PROTEINS[uniprot][filepos].each do |filename|
+  - i3d_proteins[uniprot][filepos].each do |filename|
     - type = filename =~ /EXP/ ? :pdb : :model
     - url = "https://interactome3d.irbbarcelona.org/pdb.php?dataset=human&type1=proteins&type2=#{ type }&pdb=#{ filename }"
     - interactome_protein_pdbs[filename] = url
 - else
   - interactome_protein_pdbs = []
 
-- if uniprot and Proteomics::I3D_INTERACTIONS.include? uniprot
-  - filepos = Proteomics::I3D_INTERACTIONS.identify_field "FILENAME"
+- if uniprot and i3d_interations.include? uniprot
+  - filepos =  i3d_interations.identify_field "FILENAME"
   - interactome_interaction_pdbs = {}
-  - Proteomics::I3D_INTERACTIONS[uniprot][filepos].each do |filename|
+  - i3d_interations[uniprot][filepos].each do |filename|
     - type = filename =~ /EXP/ ? :pdb : :model
     - url = "https://interactome3d.irbbarcelona.org/pdb.php?dataset=human&type1=interactions&type2=#{ type }&pdb=#{ filename }"
     - interactome_interaction_pdbs[filename] = url
@@ -26,7 +28,10 @@
 
 - TSV.traverse pdbs, :into => pdb_alignments, :type => :array, :cpus => 10 do |pdb,info|
   - job = Proteomics.job(:pdb_alignment_map, pdb, :pdb => pdb, :sequence => protein.sequence)
-  - res = job.produce.load
+  - begin
+    - res = job.produce.load
+  - rescue
+    - next
   - [pdb,res]
 
 - TSV.traverse interactome_protein_pdbs, :into => pdb_alignments, :type => :array, :cpus => 10 do |filename,url|
@@ -76,7 +81,7 @@
         - (pdbs || []).each do |pdb, info|
           - url = "https://files.rcsb.org/view/#{pdb}.pdb"
           - map = pdb_alignments[pdb]
-          - next if map.empty?
+          - next if map.nil? || map.empty?
           - pos = map.keys.collect{|p| p.to_i}
           - info[:region] = [pos.min, pos.max] * ".."
           .item#pdb(attr-url=url attr-pdb=pdb)= "#{pdb} (#{info[:region]}) - #{info[:method]} #{info[:method] != "NMR" ? info[:resolution] : ""}"

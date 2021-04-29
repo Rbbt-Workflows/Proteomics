@@ -2,7 +2,7 @@
 - organism = entity.organism
 
 - domain_names = InterPro.domain_names.tsv :persist =>  true
-- databases = Structure::ANNOTATORS.keys - ['variants']
+- databases = Proteomics::ANNOTATORS.keys - ['variants']
 - name_index = nil
 - names = Organism.identifiers(organism).index :target => "Associated Gene Name", :persist => true
 
@@ -69,11 +69,11 @@
           &:nth-child(2n+1)
             background-color: rgba(0,0,200,0.05)
 
-    - scores_job = Structure.job(:scores, nil, :mutations => [mutated_isoform], :organism => mutated_isoform.organism)
+    - scores_job = Proteomics.job(:scores, nil, :mutations => [mutated_isoform], :organism => mutated_isoform.organism)
     - scores_job.run
     - job = scores_job.step(:wizard)
 
-    - interfaces = Structure.job(:mi_interfaces, nil, :mutated_isoforms => [mutation])
+    - interfaces = Proteomics.job(:mi_interfaces, nil, :mutated_isoforms => [mutation])
     - interfaces = interfaces.clean if interfaces.error?
     - interfaces = interfaces.fork.join.load
     - interfaces = interfaces.slice(interfaces.fields.reject{|f| f=~ /PDB/ or f == "Residue"})

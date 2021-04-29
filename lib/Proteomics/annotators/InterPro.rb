@@ -41,14 +41,14 @@ module Proteomics
     next if sequence.nil?
 
     features =  Misc.insist do
-      Persist.persist("Corrected InterPro features", :marshal, :persist => true, :update => true, :dir => cache(:corrected_interpro_features), :other => {:uniprot => uniprot, :sequence => sequence, :organism => organism}) do
+      Persist.persist("Corrected InterPro features", :marshal, :persist => true, :dir => cache(:corrected_interpro_features), :other => {:uniprot => uniprot, :sequence => sequence, :organism => organism}) do
         Proteomics.corrected_interpro_features(uniprot, sequence, organism)
       end
     end
     next if features.empty?
 
     case residue
-    when Fixnum
+    when Integer
       start = eend = residue
     when /(\d+):(.*)/
       start = $1.to_i

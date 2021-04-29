@@ -8,6 +8,7 @@ require 'rbbt/workflow'
 
 Workflow.require_workflow "Genomics"
 require 'rbbt/entity/gene'
+require 'rbbt/entity/protein'
 require 'rbbt/entity/mutated_isoform'
 require 'rbbt/entity/InterPro'
 require 'rbbt/sources/pfam'

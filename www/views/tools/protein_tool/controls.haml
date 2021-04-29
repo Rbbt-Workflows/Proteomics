@@ -189,7 +189,7 @@
 
   - if protein.uniprot
     - uniprot_alignment, ensembl_alignment = SmithWaterman.align(UniProt.sequence(protein.uniprot), protein.sequence)
-    - alignment_map = Structure.alignment_map(uniprot_alignment, ensembl_alignment)
+    - alignment_map = Proteomics.alignment_map(uniprot_alignment, ensembl_alignment)
 
     %dt.next UniProt mutations
     %dd.UniProt

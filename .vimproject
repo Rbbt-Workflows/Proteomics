@@ -51,9 +51,76 @@ Proteomics=/$PWD filter="*.rb *.rake Rakefile *.rdoc *.R *.sh *.js *.haml *.sass
  www=www{
   views=views{
    tasks.haml
+   tools=tools {
+    protein_tool.haml
+    protein_tool=protein_tool {
+     COSMIC_tab.haml
+     PDB-Viewer_tab.haml
+     controls.haml
+    }
+   }
    entity=entity{
     MutatedIsoform.haml
     Protein.haml
+    MutatedIsoform=MutatedIsoform {
+     affected_features.haml
+    }
+    Protein=Protein {
+     COSMIC.haml
+     COSMIC_neighbours.haml
+    }
+   }
+   partials=partials {
+    download.haml
+    isotope_form.haml
+    protein_mutation_overview.haml
+   }
+   Proteomics=Proteomics {
+    layout.haml
+    tasks.haml
+    layout=layout {
+     top_menu.haml
+    }
+    score_summary=score_summary {
+     job_result.haml
+    }
+    scores=scores {
+     job_result.haml
+    }
+   }
+   compass=compass {
+    protein.sass
+    tools=tools {
+     isoform_svg.sass
+     jmol.sass
+     protein_tool.sass
+     sequence.sass
+     structure.sass
+    }
+   }
+   public=public {
+    js=js {
+     isoform_svg.js
+     ngl.js
+     protein_tool.js
+     rbbt.protein_tool.js
+     secondary_structure.js
+     sequence.js
+     isotope=isotope {
+      isotope.pkgd.min.js
+     }
+     jquery-jmol=jquery-jmol {
+      jmol-accent.js
+      jmol-accent.save.js
+      jquery.jmol.js
+     }
+     jquery-ui=jquery-ui {
+      jquery-ui.js
+     }
+     ngl=ngl {
+      ngl.min.js
+     }
+    }
    }
   }
  }

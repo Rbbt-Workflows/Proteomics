@@ -6,6 +6,7 @@ require 'rbbt/workflow'
 
 #require 'rbbt/entity/structure'
 
+Workflow.require_workflow "Genomics"
 require 'rbbt/entity/gene'
 require 'rbbt/entity/mutated_isoform'
 require 'rbbt/entity/InterPro'

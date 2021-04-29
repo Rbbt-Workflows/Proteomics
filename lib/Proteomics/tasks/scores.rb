@@ -118,7 +118,13 @@ module Proteomics
       uniprot_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'UniProt' }.first.load
     end
 
-    dbNSFP = DbNSFP.job(:annotate, nil, :mutations => mis).run
+    mis_ensp = mis.collect{|mi|
+      mi =~ /ENSP/ ? mi : Proteomics.name2pi(mi)
+    }
+
+    dbNSFP = DbNSFP.job(:annotate, nil, :mutations => mis_ensp).run
+
+    Open.write(file("dbNSFP.tsv"), dbNSFP.to_s)
 
     predictors = %w(SIFT Polyphen2_HDIV Polyphen2_HVAR MutationTaster MutationAssessor FATHMM LRT VEST3 CADD )
     thresholds = %w( <0.05 >0.957,0.453 >0.909,0.447 >0.5 >3.5,1.9 <-1.5 - >0.8 >3.5   )
@@ -137,12 +143,13 @@ module Proteomics
       mi = mi.first if Array ===  mi
 
       values = []
-      ensp, _sep, change = mi.partition(":") 
-      next unless ensp =~ /^ENSP/
+      ensp_mi = mi =~ /ENSP/ ? mi : Proteomics.name2pi(mi)
+      next unless ensp_mi =~ /^ENSP/
+
 
       damage_count = 0
       total_preds = 0
-      dvalues = dbNSFP[mi]
+      dvalues = dbNSFP[ensp_mi]
 
       if dvalues
         predictors.each_with_index do |predictor,i|
@@ -261,7 +268,7 @@ module Proteomics
 
       values << interfaces.include?(mi) ? "Yes" : "No"
 
-      if dbNSFP.include? mi
+      if dbNSFP.include? ensp_mi
         values << "#{damage_count} of 8"
       else
         values << "NA"

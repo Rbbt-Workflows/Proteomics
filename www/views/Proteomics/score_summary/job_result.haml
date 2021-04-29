@@ -80,6 +80,7 @@
 %dl.rbbt_tabs
   - first = true
   - proteins.each do |protein,protein_mis|
+    - protein = Proteomics.name2pi(protein).split(":").first
     - protein = Protein.setup(protein.dup, "Ensembl Protein ID", organism)
     - name = protein.name
 
@@ -95,26 +96,26 @@
 
 %hr
 
-%h3 
+-#%h3 
   Damage predictions 
   (from 
   %a(href="https://sites.google.com/site/jpopgen/dbNSFP")< dbNSFP
   \)
 
-.damage_overview
-  - tsv = DbNSFP.job(:score, job.clean_name, :mutations => mis.select{|mi| mi.consequence == "MISS-SENSE"}).run
-  - if tsv.length > 0
-    = table :table_id => "dbNSFP annotation (-999 are missing values)", :span => true do
-      - good_fields = tsv.fields.select{|f| f =~  /(_score|CADD_raw|SVM_score)$/ }
-      - tsv = tsv.slice(good_fields)
-      - tsv.rename_field "RadialSVM_score", "SVM_score"
-      - tsv = scores.attach tsv if scores.any?
-      - tsv
-
-:sass
   .damage_overview
-    table th:nth-child(2):after
-      content: "*"
+    - tsv = TSV.open job.file('dbNSFP.tsv')
+    - if tsv.length > 0
+      = table :table_id => "dbNSFP annotation (-999 are missing values)", :span => true do
+        - good_fields = tsv.fields.select{|f| f =~  /(_score|CADD_raw|SVM_score)$/ }
+        - tsv = tsv.slice(good_fields)
+        - tsv.rename_field "RadialSVM_score", "SVM_score"
+        - tsv = scores.attach tsv if scores.any?
+        - tsv
+
+  :sass
+    .damage_overview
+      table th:nth-child(2):after
+        content: "*"
     
 :deferjs
   var scores_table = $('table').last()

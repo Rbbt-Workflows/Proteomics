@@ -14,7 +14,7 @@
 - mutation_isoform_info = mutation_isoform_info.attach(Proteomics.COSMIC_mutation_annotations, :fields => ["Primary site", "Site subtype 1", "Site subtype 2", "Site subtype 3", "Primary histology", "Histology subtype 1", "Histology subtype 2", "Histology subtype 3"])
 
 - positions = mutation_isoform_info.column("Change").values.flatten.uniq.collect{|c| c.match(/(\d+)/)[0] }.compact.uniq
-- map = Proteomics.neighbours_i3d(entity, positions, organism, true)
+- map = Proteomics.neighbours(entity, positions.collect{|o| p.to_i}, organism)
 - databases = Proteomics::ANNOTATORS.keys
 - database_feature_counts = {}
 - feature_locations = {}
@@ -36,7 +36,7 @@
     - values = annotator.annotate(protein, residue, organism)
     - next if values.nil?
     - if location_pos
-      - Misc.zip_fields(values.values_at(feature_pos, location_pos)).each do |entry|
+      - Misc.zip_fields(values.values_at(feature_pos, location_pos).collect{|e| Array === e ? e : [e] }).each do |entry|
         - feature, location = entry
         - feature_sizes[feature] ||= 0
         - feature_sizes[feature] += 1
@@ -59,7 +59,7 @@
       - next if values.nil?
       - seen = []
       - if location_pos
-        - Misc.zip_fields(values.values_at(feature_pos, location_pos)).each do |entry|
+        - Misc.zip_fields(values.values_at(feature_pos, location_pos).collect{|e| Array === e ? e : [e] }).each do |entry|
           - feature, location = entry
           - next if feature.nil? or feature.empty? or seen.include? feature
           - seen << feature

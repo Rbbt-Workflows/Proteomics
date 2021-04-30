@@ -69,7 +69,7 @@
           &:nth-child(2n+1)
             background-color: rgba(0,0,200,0.05)
 
-    - scores_job = Proteomics.job(:scores, nil, :mutations => [mutated_isoform], :organism => mutated_isoform.organism)
+    - scores_job = Proteomics.job(:scores, nil, :mutated_isoforms => [mutated_isoform], :organism => mutated_isoform.organism)
     - scores_job.run
     - job = scores_job.step(:wizard)
 
@@ -79,7 +79,7 @@
     - interfaces = interfaces.slice(interfaces.fields.reject{|f| f=~ /PDB/ or f == "Residue"})
 
     #structureppi
-      - if interfaces.any?
+      - if ! interfaces.empty?
         .full_width
           .content
             %h5 Affected PPI interfaces
@@ -105,8 +105,8 @@
       - annotation_files = {}
       - annotation_neighbour_files = {}
       - databases.each do |database|
-        - annotation_files[database] = job.file(database).tsv
-        - annotation_neighbour_files[database] = job.file(database + ' neighbours').tsv
+        - annotation_files[database] = job.rec_dependencies.select{|d| d.task_name.to_s.include?('annotat') && ! d.task_name.to_s.include?("neigh")}.select{|d| d.inputs[:database].to_s == database.to_s}.first.load
+        - annotation_neighbour_files[database] = job.rec_dependencies.select{|d| d.task_name.to_s.include?('annotat') && d.task_name.to_s.include?("neigh")}.select{|d| d.inputs[:database].to_s == database.to_s}.first.load
       - databases.each do |database|
         - fields = annotation_files[database].fields
         - values = annotation_files[database][mutation]

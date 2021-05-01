@@ -66,8 +66,9 @@ module Proteomics
     wizard = step(:wizard)
     wizard_res = wizard.load
 
+
     wizard_res.add_field "Score" do |mi, values|
-      Proteomics.score_mi(values)
+      [Proteomics.score_mi(values).to_i]
     end
 
     if wizard_res.key_field == "Genomic Mutation"
@@ -94,7 +95,11 @@ module Proteomics
     #  scores_res = scores_res.reorder "Mutated Isoform", scores_res.fields
     #end
 
-    mis = wizard_res.keys
+    if by_dna
+      mis = wizard_res.column("Mutated Isoform").values.flatten.uniq
+    else
+      mis = wizard_res.keys
+    end
 
     build = Organism.hg_build(organism)
 
@@ -123,8 +128,9 @@ module Proteomics
     }
 
     dbNSFP = DbNSFP.job(:annotate, nil, :mutations => mis_ensp).run
+    dbNSFP_pred = DbNSFP.job(:predict, nil, :mutations => mis_ensp).run
 
-    Open.write(file("dbNSFP.tsv"), dbNSFP.to_s)
+    Open.write(file("dbNSFP_pred.tsv"), dbNSFP_pred.to_s)
 
     predictors = %w(SIFT Polyphen2_HDIV Polyphen2_HVAR MutationTaster MutationAssessor FATHMM LRT VEST3 CADD )
     thresholds = %w( <0.05 >0.957,0.453 >0.909,0.447 >0.5 >3.5,1.9 <-1.5 - >0.8 >3.5   )
@@ -149,39 +155,40 @@ module Proteomics
 
       damage_count = 0
       total_preds = 0
-      dvalues = dbNSFP[ensp_mi]
+      dvalues = dbNSFP_pred[ensp_mi]
 
       if dvalues
-        predictors.each_with_index do |predictor,i|
-          next if predictor == "LRT"
-          raw, dscore, converted, rankscore, raw_rankscore, converted_rankscore, p = nil
-          threshold = thresholds[i]
-          raw = dvalues[predictor + '_raw'] if dvalues.fields.include? predictor + '_raw'
-          dscore = dvalues[predictor + '_score'] if dvalues.fields.include? predictor + '_score'
-          dscore = nil if String === dscore and dscore.empty?
-          dscore = raw if dscore.nil?
-          converted = dvalues[predictor + '_converted_score'] if dvalues.fields.include? predictor + '_converted_score'
-          rankscore = dvalues[predictor + '_rankscore'] if dvalues.fields.include? predictor + '_rankscore'
-          raw_rankscore = dvalues[predictor + '_raw_rankscore'] if dvalues.fields.include? predictor + '_raw_rankscore'
-          converted_rankscore = dvalues[predictor + '_converted_rankscore'] if dvalues.fields.include? predictor + '_converted_rankscore'
+        damage_count = dvalues.select{|v| %(D H).include? v.to_s}.length
+        total_preds = dvalues.select{|v| v.to_s != ""}.length
+        #predictors.each_with_index do |predictor,i|
+        #  next if predictor == "LRT"
+        #  raw, dscore, converted, rankscore, raw_rankscore, converted_rankscore, p = nil
+        #  threshold = thresholds[i]
+        #  raw = dvalues[predictor + '_raw'] if dvalues.fields.include? predictor + '_raw'
+        #  dscore = dvalues[predictor + '_score'] if dvalues.fields.include? predictor + '_score'
+        #  dscore = nil if String === dscore and dscore.empty?
+        #  dscore = raw if dscore.nil?
+        #  converted = dvalues[predictor + '_converted_score'] if dvalues.fields.include? predictor + '_converted_score'
+        #  rankscore = dvalues[predictor + '_rankscore'] if dvalues.fields.include? predictor + '_rankscore'
+        #  raw_rankscore = dvalues[predictor + '_raw_rankscore'] if dvalues.fields.include? predictor + '_raw_rankscore'
+        #  converted_rankscore = dvalues[predictor + '_converted_rankscore'] if dvalues.fields.include? predictor + '_converted_rankscore'
 
-          if score and threshold != '-'
-            p = case threshold
-              when /^<(.*)/
-                ths = $1.split(",")
-                ths.inject(0){|acc,e| acc += 1 if dscore.to_f < e.to_f; acc}.to_f/ths.length
-              when /^>(.*)/
-                ths = $1.split(",")
-                ths.inject(0){|acc,e| acc += 1 if dscore.to_f > e.to_f; acc}.to_f/ths.length
-              else
-                nil
-              end
+        #  if score and threshold != '-'
+        #    p = case threshold
+        #      when /^<(.*)/
+        #        ths = $1.split(",")
+        #        ths.inject(0){|acc,e| acc += 1 if dscore.to_f < e.to_f; acc}.to_f/ths.length
+        #      when /^>(.*)/
+        #        ths = $1.split(",")
+        #        ths.inject(0){|acc,e| acc += 1 if dscore.to_f > e.to_f; acc}.to_f/ths.length
+        #      else
+        #        nil
+        #      end
 
-            damage_count += 1 if p > 0.5
-            total_preds +=1
-
-          end
-        end
+        #    damage_count += 1 if p > 0.5
+        #    total_preds +=1
+        #  end
+        #end
       end
 
       values << score.flatten.first
@@ -269,7 +276,7 @@ module Proteomics
       values << interfaces.include?(mi) ? "Yes" : "No"
 
       if dbNSFP.include? ensp_mi
-        values << "#{damage_count} of 8"
+        values << "#{damage_count} of #{total_preds}"
       else
         values << "NA"
       end

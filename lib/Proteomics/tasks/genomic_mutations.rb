@@ -4,7 +4,7 @@ module Proteomics
   input :database, :select, "Database of annotations", "UniProt", :select_options => ANNOTATORS.keys
   input :principal, :boolean, "Consider only principal isoforms", true
   input :simplify, :boolean, "Simplify output lists", false
-  dep Sequence, :mutated_isoforms_fast, :principal => :principal, :non_synonymous => true
+  dep Sequence, :mutated_isoforms_fast, :principal => :principal, :non_synonymous => true, :coding => true, :watson => true
   task :annotate_dna => :tsv do |organism,database,principal,simplify|
     Proteomics.unfold_traverse(step(:mutated_isoforms_fast), Proteomics, :annotate_mi, :mutated_isoforms, :database => database, :organism => organism, :unfold_field => "Mutated Isoform", :key_field => "Genomic Mutation", :simplify => simplify) do |mut,mi,values|
       values.collect{|l| Array === l ? l * "|" : l }
@@ -13,7 +13,7 @@ module Proteomics
 
   input :organism, :string, "Organism code", Organism.default_code("Hsa")
   input :principal, :boolean, "Consider only principal isoforms", true
-  dep Sequence, :mutated_isoforms_fast, :principal => :principal, :non_synonymous => true
+  dep Sequence, :mutated_isoforms_fast, :principal => :principal, :non_synonymous => true, :coding => true, :watson => true
   task :dna_neighbours => :tsv do |organism,principal|
     Proteomics.unfold_traverse(step(:mutated_isoforms_fast), Proteomics, :mi_neighbours, :mutated_isoforms, :organism => organism, :unfold_field => "Mutated Isoform", :key_field => "Genomic Mutation") do |mut,mi,values|
       values.collect{|l| Array === l ? l * "|" : l }
@@ -25,7 +25,6 @@ module Proteomics
   input :database, :select, "Database of annotations", "UniProt", :select_options => ANNOTATORS.keys
   input :simplify, :boolean, "Simplify output lists", false
   task :annotate_dna_neighbours => :tsv do |organism,database,simplify|
-
     stream = Misc.open_pipe do |sin|
       dumper = TSV::Dumper.new :key_fields => "Mutated Isoform", :fields =>  ["Neighbours"],:type => :flat, :namespace => organism
       dumper.init
@@ -45,9 +44,16 @@ module Proteomics
       sin.close
     end
 
-    Proteomics.unfold_traverse(stream, Proteomics, :annotate_mi, :mutated_isoforms, :database => database, :organism => organism, :unfold_field => "Neighbour", :key_field => "Genomic Mutation", :simplify => simplify) do |mi,nmi,values|
+    dumper = Proteomics.unfold_traverse(stream, Proteomics, :annotate_mi, :mutated_isoforms, :database => database, :organism => organism, :unfold_field => "Neighbour", :key_field => "Genomic Mutation", :simplify => simplify) do |mut,nmi,values|
       values[0] = nmi.split(":").last.scan(/\d+/).first
       values.collect{|l| Array === l ? l * "|" : l }
+    end
+
+    stream = TSV.paste_streams [step(:mutated_isoforms_fast), dumper.stream], :sort => false
+
+    TSV.traverse stream, :type => :array, :into => :stream do |line|
+      next if line != /^#/ && line.split("\t")[2].nil?
+      line
     end
   end
 

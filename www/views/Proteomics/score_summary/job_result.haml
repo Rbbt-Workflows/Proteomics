@@ -57,7 +57,7 @@
 %h3 Isoform details
 
 :sass
-  .protein_mutation_overview, .damage_overview
+  //.protein_mutation_overview, .damage_overview
     table
       width: auto !important
       li.table_column, li.filter
@@ -96,15 +96,17 @@
 
 %hr
 
--#%h3 
+%h3 
   Damage predictions 
   (from 
   %a(href="https://sites.google.com/site/jpopgen/dbNSFP")< dbNSFP
   \)
 
-  .damage_overview
-    - tsv = TSV.open job.file('dbNSFP.tsv')
-    - if tsv.length > 0
+.damage_overview
+  - tsv = TSV.open job.file('dbNSFP_pred.tsv')
+  = table do
+    - tsv
+    -# if tsv.length > 0
       = table :table_id => "dbNSFP annotation (-999 are missing values)", :span => true do
         - good_fields = tsv.fields.select{|f| f =~  /(_score|CADD_raw|SVM_score)$/ }
         - tsv = tsv.slice(good_fields)
@@ -112,7 +114,7 @@
         - tsv = scores.attach tsv if scores.any?
         - tsv
 
-  :sass
+  -#:sass
     .damage_overview
       table th:nth-child(2):after
         content: "*"

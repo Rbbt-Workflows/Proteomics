@@ -61,13 +61,11 @@ module Proteomics
 
 
   input :organism, :string, "Organism code", Organism.default_code("Hsa")
-  input :database, :select, "Database of annotations", "UniProt", :select_options => ANNOTATORS.keys
   input :principal, :boolean, "Consider only principal isoforms", true
-  input :neighbours, :boolean, "Annotate neighbours", false
   input :simplify, :boolean, "Simplify output lists", false
   dep Sequence, :mutated_isoforms_fast, :principal => :principal, :non_synonymous => true
-  task :dna_interfaces => :tsv do |organism,database,principal,neighbours,simplify|
-    Proteomics.unfold_traverse(step(:mutated_isoforms_fast), Proteomics, :mi_interfaces, :mutated_isoforms, :database => database, :organism => organism, :unfold_field => "Mutated Isoform", :key_field => "Genomic Mutation", :simplify => simplify) do |mut,mi,values|
+  task :dna_interfaces => :tsv do |organism,principal,simplify|
+    Proteomics.unfold_traverse(step(:mutated_isoforms_fast), Proteomics, :mi_interfaces, :mutated_isoforms, :organism => organism, :unfold_field => "Mutated Isoform", :key_field => "Genomic Mutation", :simplify => simplify) do |mut,mi,values|
       values.collect{|l| Array === l ? l * "|" : l }
     end
   end

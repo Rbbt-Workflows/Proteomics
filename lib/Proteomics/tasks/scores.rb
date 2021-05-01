@@ -135,7 +135,7 @@ module Proteomics
     predictors = %w(SIFT Polyphen2_HDIV Polyphen2_HVAR MutationTaster MutationAssessor FATHMM LRT VEST3 CADD )
     thresholds = %w( <0.05 >0.957,0.453 >0.909,0.447 >0.5 >3.5,1.9 <-1.5 - >0.8 >3.5   )
 
-    fields = %w(Score CV #CS FL MR MUT DT PPI DP)
+    fields = ["Score", "ClinVar", "COSMIC", "Appris", "UniProt MOD_RES", "UniProt MUTAGEN", "PanDrugs", "Affected PPI", "Damage Predictions"]
     tsv = TSV.setup({}, :key_field => "Mutated Isoform", :fields => fields, :type => :list, :namespace => wizard_res.namespace)
 
     scores_res.each do |key, values|

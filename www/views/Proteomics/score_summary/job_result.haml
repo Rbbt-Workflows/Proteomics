@@ -50,6 +50,8 @@
 
   %h3 Mutation Overview
 
+  %p Entries in parenthesis indicate features in neighouring residues
+
   = table do
     - job.load
 
@@ -124,4 +126,4 @@
   var sppi_header = scores_table.find('th:nth-child(2)')
   sppi_header.addClass('asterisk')
   //sppi_header.attr('data-content', 'This score quantifies the protein features affected by the mutation. It is intended to complement damage predictions. See help for more details').popup()
-  scores_table.parent('div').append($('<p>').html("* The Structure-PPi feature score quantifies the protein features affected by the mutation. It is intended to complement damage predictions. Read the documentation for more details"))
+  //scores_table.parent('div').append($('<p>').html("* The Structure-PPi feature score quantifies the protein features affected by the mutation. It is intended to complement damage predictions. Read the documentation for more details"))

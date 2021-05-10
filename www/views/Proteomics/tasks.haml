@@ -130,7 +130,8 @@
     %dl.tasks.clean_list
       - tasks = workflow.exec_exports + workflow.synchronous_exports + workflow.asynchronous_exports
 
-      - tasks.sort.each do |task|
+      - task_order = workflow.documentation[:tasks].keys.collect{|t| t.to_s }
+      - tasks.sort_by{|t| task_order.index t.to_s }.each do |task|
         %dt.next
           %a(href="#{File.join("/", workflow.to_s, task.to_s)}" title="#{task.to_s}")= task
         - info = workflow.task_info(task)

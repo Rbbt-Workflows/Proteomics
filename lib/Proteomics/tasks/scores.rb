@@ -3,7 +3,7 @@ module Proteomics
     value = value.collect{|v| v.split(";")}.flatten
     score = case field
             when "Appris Features"
-              if value.include? "firestar"
+              if value.include?("domain") || value.include?("tmh_signal") || value.include?("tmh_signal")
                 2
               else
                 1 
@@ -14,7 +14,7 @@ module Proteomics
               sum = 0
               sum += 1 if (value & relevant).any?
               sum
-            when "Sample"
+            when "Sample name"
               case 
               when value.length > 10
                 3
@@ -33,14 +33,14 @@ module Proteomics
                 0
               end
             when "Type of Variant"
-              if value.include?("Disease")
+              if value.include?("LP/P")
                 2
-              elsif value.include?("Unclassified")
+              elsif value.include?("Unclassified") || value.include?("LB/B")
                 1
               else
                 0
               end
-            when "Partner Ensembl Protein ID"
+            when "Partner (Ensembl Protein ID)"
               2
             else
               0
@@ -49,13 +49,13 @@ module Proteomics
   end
 
   def self.score_mi(values)
-    score = 0
+    score = 0.0
     values.zip(values.fields).each do |value, field|
       next if value.empty?
       if field =~ /Neighbour/
-        score = score.to_f + (score_for(field.sub('Neighbour ',''), value, values).to_f / 2)
+        score = score.to_f + (score_for(field.sub('Neighbouring ',''), value, values).to_f / 2)
       else
-        score = score + score_for(field, value, values)
+        score = score.to_f + score_for(field, value, values).to_f
       end
     end
     score
@@ -68,7 +68,7 @@ module Proteomics
 
 
     wizard_res.add_field "Score" do |mi, values|
-      [Proteomics.score_mi(values).to_i]
+      [Proteomics.score_mi(values).to_f]
     end
 
     if wizard_res.key_field == "Genomic Mutation"

@@ -8,7 +8,7 @@ module Proteomics
   end
 
   def self.corrected_uniprot_features(uniprot, sequence)
-    Persist.persist("Corrected UniProt features", :marshal,  :persist => true, :dir => Proteomics::Annotator.cache(:corrected_uniprot_features), :other => {:uniprot => uniprot, :sequence => sequence}) do
+    Persist.persist("Corrected UniProt features", :marshal,  :dir => Proteomics::Annotator.cache(:corrected_uniprot_features), :other => {:uniprot => uniprot, :sequence => sequence}) do
       uniprot_sequence = UniProt.sequence(uniprot)
 
       map = uniprot_sequence_map(uniprot, sequence)
@@ -118,7 +118,7 @@ module Proteomics
     overlapping = [[],[],[]]
 
     case residue
-    when Fixnum
+    when Integer
       start = eend = residue
     when /(\d+):(.*)/
       start = $1.to_i

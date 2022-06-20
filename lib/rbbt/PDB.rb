@@ -18,7 +18,7 @@ module PDB
     else
       begin
         content = Persist.persist("PDB file", :text, :persist => true, :dir => cache(:pdb_files), :other => {:pdb => pdb}) do 
-          Misc.insist do
+          Misc.insist(1) do
             if pdb.length > 5 and Open.remote?(pdb)
               Open.read(pdb)
             else

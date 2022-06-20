@@ -101,7 +101,7 @@
       Scores for neighbours are divided by 2. The final tally is reported
       under the section `Damage predictions` in the wizard report
 
-    = action_parameters nil, {}, :action => "/Structure/score_summary", :method => "POST" do
+    = action_parameters nil, {}, :action => "/Proteomics/score_summary", :method => "POST" do
       - input :mutations, :array, "Mutations (e.g. 18:6237978:G, ENSP00000382976:L257R, L3MBTL4:L257R)", nil, :no_file => true
 
   .precomputed
@@ -130,7 +130,8 @@
     %dl.tasks.clean_list
       - tasks = workflow.exec_exports + workflow.synchronous_exports + workflow.asynchronous_exports
 
-      - tasks.sort.each do |task|
+      - task_order = workflow.documentation[:tasks].keys.collect{|t| t.to_s }
+      - tasks.sort_by{|t| task_order.index t.to_s }.each do |task|
         %dt.next
           %a(href="#{File.join("/", workflow.to_s, task.to_s)}" title="#{task.to_s}")= task
         - info = workflow.task_info(task)

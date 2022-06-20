@@ -1,20 +1,22 @@
 
 - uni2name = Organism.identifiers(protein.organism).index :target => "Associated Gene Name", :persist => true, :fields => ["UniProt/SwissProt Accession"]
 
-- if uniprot and Structure::I3D_PROTEINS.include? uniprot
-  - filepos = Structure::I3D_PROTEINS.identify_field "FILENAME"
+- i3d_proteins = Interactome3d.proteins_tsv.tsv :persist => true
+- i3d_interations = Interactome3d.interactions_tsv.tsv :persist => true
+- if uniprot and i3d_proteins.include? uniprot
+  - filepos = i3d_proteins.identify_field "FILENAME"
   - interactome_protein_pdbs = {}
-  - Structure::I3D_PROTEINS[uniprot][filepos].each do |filename|
+  - i3d_proteins[uniprot][filepos].each do |filename|
     - type = filename =~ /EXP/ ? :pdb : :model
     - url = "https://interactome3d.irbbarcelona.org/pdb.php?dataset=human&type1=proteins&type2=#{ type }&pdb=#{ filename }"
     - interactome_protein_pdbs[filename] = url
 - else
   - interactome_protein_pdbs = []
 
-- if uniprot and Structure::I3D_INTERACTIONS.include? uniprot
-  - filepos = Structure::I3D_INTERACTIONS.identify_field "FILENAME"
+- if uniprot and i3d_interations.include? uniprot
+  - filepos =  i3d_interations.identify_field "FILENAME"
   - interactome_interaction_pdbs = {}
-  - Structure::I3D_INTERACTIONS[uniprot][filepos].each do |filename|
+  - i3d_interations[uniprot][filepos].each do |filename|
     - type = filename =~ /EXP/ ? :pdb : :model
     - url = "https://interactome3d.irbbarcelona.org/pdb.php?dataset=human&type1=interactions&type2=#{ type }&pdb=#{ filename }"
     - interactome_interaction_pdbs[filename] = url
@@ -25,17 +27,20 @@
 - pdbs = [] if pdbs.nil?
 
 - TSV.traverse pdbs, :into => pdb_alignments, :type => :array, :cpus => 10 do |pdb,info|
-  - job = Structure.job(:pdb_alignment_map, pdb, :pdb => pdb, :sequence => protein.sequence)
-  - res = job.produce.load
+  - job = Proteomics.job(:pdb_alignment_map, pdb, :pdb => pdb, :sequence => protein.sequence)
+  - begin
+    - res = job.produce.load
+  - rescue
+    - next
   - [pdb,res]
 
 - TSV.traverse interactome_protein_pdbs, :into => pdb_alignments, :type => :array, :cpus => 10 do |filename,url|
-  - job = Structure.job(:pdb_alignment_map, filename, :pdb => url, :sequence => protein.sequence)
+  - job = Proteomics.job(:pdb_alignment_map, filename, :pdb => url, :sequence => protein.sequence)
   - res = job.produce.load
   - [filename,res]
 
 - TSV.traverse interactome_interaction_pdbs, :into => pdb_alignments, :type => :array, :cpus => 10 do |filename,url|
-  - job = Structure.job(:pdb_alignment_map, filename, :pdb => url, :sequence => protein.sequence)
+  - job = Proteomics.job(:pdb_alignment_map, filename, :pdb => url, :sequence => protein.sequence)
   - res = job.produce.load
   - [filename,res]
 
@@ -45,7 +50,7 @@
 
 - iso2uni = Organism.protein_identifiers(protein.organism).index(:target => "UniProt/SwissProt Accession", :persist => true, :unnamed => true)
 - iso2sequence = Organism.protein_sequence(protein.organism).tsv(:type => :single, :persist => true, :unnamed => true)
-- cache_dir = Rbbt.var.Structure
+- cache_dir = Rbbt.var.Proteomics
 - corrected_features = cache_dir.corrected_features.find
 - uniprot = iso2uni[protein]
 - uniprot_features = {}
@@ -56,7 +61,7 @@
 
     - uniprot_features = Misc.insist do
       - Persist.persist("Corrected UniProt features", :marshal,  :persist => true, :lock => {:max_age => 0, :suspend => 0, :refresh => false}, :dir => corrected_features, :other => _other) do
-        - Structure.corrected_uniprot_features(uniprot, protein.sequence)
+        - Proteomics.corrected_uniprot_features(uniprot, protein.sequence)
 
 .ui.field
 .NGL_viewer
@@ -76,7 +81,7 @@
         - (pdbs || []).each do |pdb, info|
           - url = "https://files.rcsb.org/view/#{pdb}.pdb"
           - map = pdb_alignments[pdb]
-          - next if map.empty?
+          - next if map.nil? || map.empty?
           - pos = map.keys.collect{|p| p.to_i}
           - info[:region] = [pos.min, pos.max] * ".."
           .item#pdb(attr-url=url attr-pdb=pdb)= "#{pdb} (#{info[:region]}) - #{info[:method]} #{info[:method] != "NMR" ? info[:resolution] : ""}"
@@ -274,7 +279,7 @@
       body.on('click', '.ui.checkbox.interfaces', function(){
         if ($('.ui.checkbox.interfaces').hasClass('checked')) {
         positions= []
-          rbbt.job("Structure", "neighbour_map", {distance: 5, pdb: url}, 'true').then(function(all_neighbours_pdb){
+          rbbt.job("Proteomics", "neighbour_map", {distance: 5, pdb: url}, 'true').then(function(all_neighbours_pdb){
             pos_list = []
             for (let pos_pdb of Object.keys(all_neighbours_pdb)) {
               if (pdb2seq[pos_pdb]) {
@@ -378,7 +383,7 @@
 
 
         neighbours_cosmic_residue_incidence = {}
-        rbbt.job("Structure", "neighbour_map", {distance: angstroms, pdb: pdb}, 'true').then(function(all_neighbours_pdb){
+        rbbt.job("Proteomics", "neighbour_map", {distance: angstroms, pdb: pdb}, 'true').then(function(all_neighbours_pdb){
           pos_pdb = seq2pdb[position][0]
           neighbours_pdb = all_neighbours_pdb[pos_pdb]
           neighbours_pdb.push(pos_pdb)
@@ -403,7 +408,7 @@
         rbbt.job("SphereClustering", "protein_cluster", {protein: protein, pdbs: [pdb], spheres: clusters, distance: 5}, 'true').then(function(mutated_clusters){
           keys = Object.keys(mutated_clusters)
           keys = keys.map(Number);
-          rbbt.job("Structure", "neighbour_map", {distance: 5, pdb: pdb}, 'true').then(function(all_neighbours_pdb){
+          rbbt.job("Proteomics", "neighbour_map", {distance: 5, pdb: pdb}, 'true').then(function(all_neighbours_pdb){
             for (let cluster of keys) {
               pos_pdb = seq2pdb[cluster][0]
               neighbours_pdb = all_neighbours_pdb[pos_pdb]

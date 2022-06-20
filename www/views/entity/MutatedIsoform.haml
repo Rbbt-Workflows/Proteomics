@@ -1,18 +1,21 @@
+- entity = MutatedIsoform.setup(Proteomics.name2pi(entity), entity.organism) unless entity =~ /ENSP/ 
+
 - entity = entity.normalized
 - entity_card = EntityCard.new(entity)
 
 - entity_card.name = "MutatedIsoform"
 - entity_card.long_name = entity.name
 
+- protein = entity.protein
 - entity_card.meta do
   %dl
-    - if entity.protein
+    - if protein
       %dt Protein
-      %dd= entity.protein.link
+      %dd= protein.link
 
-    - if entity.protein.gene
+    - if protein.gene
       %dt Gene
-      %dd= entity.protein.gene.link
+      %dd= protein.gene.link
 
     %dt Consequence
     %dd= entity.consequence
@@ -51,7 +54,6 @@
 - entity_card.action_controller = default_action_controller entity
 
 = entity_card_render entity_card  do
-  - protein = entity.protein
   - sequence = protein.sequence
   .secondary_structure.active.very.basic.ui.segment
     .svg(data-sequence_length='#{sequence.length}')

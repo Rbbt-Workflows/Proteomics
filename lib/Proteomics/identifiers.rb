@@ -20,6 +20,11 @@ module Proteomics
     @@iso2seq[organism] ||= Organism.protein_sequence(organism).tsv :persist => true, :unnamed => true
   end
 
+  def self.ensp2ensg(organism = Organism.default_code("Hsa"))
+    @@ensp2ensg ||= {}
+    @@ensp2ensg ||= Organism.transcripts(organism).index :target => "Ensembl Gene Name", :fields => ["Ensembl Protein ID"], :persist => true, :merge => true
+  end
+
   def self.gene2isoform(gene, organism = Organism.default_code("Hsa"))
     return gene if gene =~ /^ENSP\d+$/
 
@@ -74,4 +79,5 @@ module Proteomics
 
     [protein, change] * ":"
   end
+
 end

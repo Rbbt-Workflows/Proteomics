@@ -3,7 +3,7 @@ module Proteomics
     value = value.collect{|v| v.split(";")}.flatten
     score = case field
             when "Appris Features"
-              if value.include? "firestar"
+              if value.include?("domain") || value.include?("tmh_signal") || value.include?("tmh_signal")
                 2
               else
                 1 
@@ -14,7 +14,7 @@ module Proteomics
               sum = 0
               sum += 1 if (value & relevant).any?
               sum
-            when "Sample"
+            when "Sample name"
               case 
               when value.length > 10
                 3
@@ -33,14 +33,14 @@ module Proteomics
                 0
               end
             when "Type of Variant"
-              if value.include?("Disease")
+              if value.include?("LP/P")
                 2
-              elsif value.include?("Unclassified")
+              elsif value.include?("Unclassified") || value.include?("LB/B")
                 1
               else
                 0
               end
-            when "Partner Ensembl Protein ID"
+            when "Partner (Ensembl Protein ID)"
               2
             else
               0
@@ -49,13 +49,13 @@ module Proteomics
   end
 
   def self.score_mi(values)
-    score = 0
+    score = 0.0
     values.zip(values.fields).each do |value, field|
       next if value.empty?
       if field =~ /Neighbour/
-        score = score.to_f + (score_for(field.sub('Neighbour ',''), value, values).to_f / 2)
+        score = score.to_f + (score_for(field.sub('Neighbouring ',''), value, values).to_f / 2)
       else
-        score = score + score_for(field, value, values)
+        score = score.to_f + score_for(field, value, values).to_f
       end
     end
     score
@@ -66,8 +66,9 @@ module Proteomics
     wizard = step(:wizard)
     wizard_res = wizard.load
 
+
     wizard_res.add_field "Score" do |mi, values|
-      Structure.score_mi(values)
+      [Proteomics.score_mi(values).to_f]
     end
 
     if wizard_res.key_field == "Genomic Mutation"
@@ -94,7 +95,11 @@ module Proteomics
     #  scores_res = scores_res.reorder "Mutated Isoform", scores_res.fields
     #end
 
-    mis = wizard_res.keys
+    if by_dna
+      mis = wizard_res.column("Mutated Isoform").values.flatten.uniq
+    else
+      mis = wizard_res.keys
+    end
 
     build = Organism.hg_build(organism)
 
@@ -102,28 +107,35 @@ module Proteomics
 
     if by_dna
       interfaces = wizard.step('dna_interfaces').load
-      cosmic = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna" && dep.inputs[:database] == 'COSMIC' }
-      cosmic_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna_neighbours" && dep.inputs[:database] == 'COSMIC' }
-      appris = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna" && dep.inputs[:database] == 'Appris' }
-      appris_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna_neighbours" && dep.inputs[:database] == 'Appris' }
-      uniprot = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna" && dep.inputs[:database] == 'UniProt' }
-      uniprot_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna_neighbours" && dep.inputs[:database] == 'UniProt' }
+      cosmic = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna" && dep.inputs[:database] == 'COSMIC' }.first.load
+      cosmic_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna_neighbours" && dep.inputs[:database] == 'COSMIC' }.first.load
+      appris = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna" && dep.inputs[:database] == 'Appris' }.first.load
+      appris_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna_neighbours" && dep.inputs[:database] == 'Appris' }.first.load
+      uniprot = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna" && dep.inputs[:database] == 'UniProt' }.first.load
+      uniprot_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_dna_neighbours" && dep.inputs[:database] == 'UniProt' }.first.load
     else
       interfaces = wizard.step('mi_interfaces').load
-      cosmic = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi" && dep.inputs[:database] == 'COSMIC' }
-      cosmic_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'COSMIC' }
-      appris = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi" && dep.inputs[:database] == 'Appris' }
-      appris_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'Appris' }
-      uniprot = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi" && dep.inputs[:database] == 'UniProt' }
-      uniprot_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'UniProt' }
+      cosmic = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi" && dep.inputs[:database] == 'COSMIC' }.first.load
+      cosmic_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'COSMIC' }.first.load
+      appris = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi" && dep.inputs[:database] == 'Appris' }.first.load
+      appris_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'Appris' }.first.load
+      uniprot = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi" && dep.inputs[:database] == 'UniProt' }.first.load
+      uniprot_neighbours = wizard.rec_dependencies.select{|dep| dep.task_name.to_s == "annotate_mi_neighbours" && dep.inputs[:database] == 'UniProt' }.first.load
     end
 
-    dbNSFP = DbNSFP.job(:annotate, nil, :mutations => mis).run
+    mis_ensp = mis.collect{|mi|
+      mi =~ /ENSP/ ? mi : Proteomics.name2pi(mi)
+    }
+
+    dbNSFP = DbNSFP.job(:annotate, nil, :mutations => mis_ensp).run
+    dbNSFP_pred = DbNSFP.job(:predict, nil, :mutations => mis_ensp).run
+
+    Open.write(file("dbNSFP_pred.tsv"), dbNSFP_pred.to_s)
 
     predictors = %w(SIFT Polyphen2_HDIV Polyphen2_HVAR MutationTaster MutationAssessor FATHMM LRT VEST3 CADD )
     thresholds = %w( <0.05 >0.957,0.453 >0.909,0.447 >0.5 >3.5,1.9 <-1.5 - >0.8 >3.5   )
 
-    fields = %w(Score CV #CS FL MR MUT DT PPI DP)
+    fields = ["Score", "ClinVar", "COSMIC", "Appris", "UniProt MOD_RES", "UniProt MUTAGEN", "PanDrugs", "Affected PPI", "Damage Predictions"]
     tsv = TSV.setup({}, :key_field => "Mutated Isoform", :fields => fields, :type => :list, :namespace => wizard_res.namespace)
 
     scores_res.each do |key, values|
@@ -133,46 +145,50 @@ module Proteomics
         score = values.first
         mi = key
       end
+      
+      mi = mi.first if Array ===  mi
 
       values = []
-      ensp, _sep, change = mi.partition(":") 
-      next unless ensp =~ /^ENSP/
+      ensp_mi = mi =~ /ENSP/ ? mi : Proteomics.name2pi(mi)
+      next unless ensp_mi =~ /^ENSP/
+
 
       damage_count = 0
       total_preds = 0
-      dvalues = dbNSFP[mi]
+      dvalues = dbNSFP_pred[ensp_mi]
 
       if dvalues
-        predictors.each_with_index do |predictor,i|
-          next if predictor == "LRT"
-          raw, dscore, converted, rankscore, raw_rankscore, converted_rankscore, p = nil
-          threshold = thresholds[i]
-          raw = dvalues[predictor + '_raw'] if dvalues.fields.include? predictor + '_raw'
-          dscore = dvalues[predictor + '_score'] if dvalues.fields.include? predictor + '_score'
-          dscore = nil if String === dscore and dscore.empty?
-          dscore = raw if dscore.nil?
-          converted = dvalues[predictor + '_converted_score'] if dvalues.fields.include? predictor + '_converted_score'
-          rankscore = dvalues[predictor + '_rankscore'] if dvalues.fields.include? predictor + '_rankscore'
-          raw_rankscore = dvalues[predictor + '_raw_rankscore'] if dvalues.fields.include? predictor + '_raw_rankscore'
-          converted_rankscore = dvalues[predictor + '_converted_rankscore'] if dvalues.fields.include? predictor + '_converted_rankscore'
+        damage_count = dvalues.select{|v| %(D H).include? v.to_s}.length
+        total_preds = dvalues.select{|v| v.to_s != ""}.length
+        #predictors.each_with_index do |predictor,i|
+        #  next if predictor == "LRT"
+        #  raw, dscore, converted, rankscore, raw_rankscore, converted_rankscore, p = nil
+        #  threshold = thresholds[i]
+        #  raw = dvalues[predictor + '_raw'] if dvalues.fields.include? predictor + '_raw'
+        #  dscore = dvalues[predictor + '_score'] if dvalues.fields.include? predictor + '_score'
+        #  dscore = nil if String === dscore and dscore.empty?
+        #  dscore = raw if dscore.nil?
+        #  converted = dvalues[predictor + '_converted_score'] if dvalues.fields.include? predictor + '_converted_score'
+        #  rankscore = dvalues[predictor + '_rankscore'] if dvalues.fields.include? predictor + '_rankscore'
+        #  raw_rankscore = dvalues[predictor + '_raw_rankscore'] if dvalues.fields.include? predictor + '_raw_rankscore'
+        #  converted_rankscore = dvalues[predictor + '_converted_rankscore'] if dvalues.fields.include? predictor + '_converted_rankscore'
 
-          if score and threshold != '-'
-            p = case threshold
-              when /^<(.*)/
-                ths = $1.split(",")
-                ths.inject(0){|acc,e| acc += 1 if dscore.to_f < e.to_f; acc}.to_f/ths.length
-              when /^>(.*)/
-                ths = $1.split(",")
-                ths.inject(0){|acc,e| acc += 1 if dscore.to_f > e.to_f; acc}.to_f/ths.length
-              else
-                nil
-              end
+        #  if score and threshold != '-'
+        #    p = case threshold
+        #      when /^<(.*)/
+        #        ths = $1.split(",")
+        #        ths.inject(0){|acc,e| acc += 1 if dscore.to_f < e.to_f; acc}.to_f/ths.length
+        #      when /^>(.*)/
+        #        ths = $1.split(",")
+        #        ths.inject(0){|acc,e| acc += 1 if dscore.to_f > e.to_f; acc}.to_f/ths.length
+        #      else
+        #        nil
+        #      end
 
-            damage_count += 1 if p > 0.5
-            total_preds +=1
-
-          end
-        end
+        #    damage_count += 1 if p > 0.5
+        #    total_preds +=1
+        #  end
+        #end
       end
 
       values << score.flatten.first
@@ -201,21 +217,18 @@ module Proteomics
 
       values << "#{count} (#{ncount})"
 
-
       if appris.include? key
-        count = Misc.zip_fields(appris[key]).select{|type,lig| type =~ /firestar/}.length
+        count = Misc.zip_fields(appris[key]).select{|type,lig| type !~ /wrong|damaged/}.length
       else
         count = 0
       end
 
       if appris_neighbours.include? key
-        ncount = Misc.zip_fields(appris_neighbours[key]).select{|res,type,lig| type =~ /firestar/}.length
+        ncount = Misc.zip_fields(appris_neighbours[key]).select{|res,type,range,lig| type !~ /wrong|damaged/}.collect{|res,type,range,lig| [type,range,lig]}.uniq.length
       else
         ncount = 0
       end
       values << "#{count == 0 ? "No" : "Yes"} (#{ncount})"
-
-
 
       if uniprot.include? key
         count = Misc.zip_fields(uniprot[key]).select{|feat,loc,desc| feat =~ /MOD_RES/}.length
@@ -247,19 +260,23 @@ module Proteomics
 
       begin
         Workflow.require_workflow "Pandrugs"
-        if Pandrugs.knowledge_base.subset('gene_drugs', :source => [mi.protein.gene], :target => :all).filter(:target_marker => 'target').filter(:status => "Approved").length > 0
+        ensp = mi.partition(":").first
+        gene = Proteomics.ensp2ensg[ensp]
+        if Pandrugs.knowledge_base.subset('gene_drugs', :source => [gene], :target => :all).filter(:target_marker => 'target').filter(:status => "Approved").length > 0
           values << "Yes"
         else
           values << "No"
         end
       rescue
+        Log.exception $!
+        Log.low "No Pandrugs"
         values << "No"
       end
 
       values << interfaces.include?(mi) ? "Yes" : "No"
 
-      if dbNSFP.include? mi
-        values << "#{damage_count} of 8"
+      if dbNSFP.include? ensp_mi
+        values << "#{damage_count} of #{total_preds}"
       else
         values << "NA"
       end

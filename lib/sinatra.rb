@@ -4,9 +4,11 @@ include Sinatra::RbbtToolHelper
 require 'rbbt-util'
 require 'rbbt/workflow'
 
-require 'rbbt/entity/structure'
+#require 'rbbt/entity/structure'
 
+Workflow.require_workflow "Genomics"
 require 'rbbt/entity/gene'
+require 'rbbt/entity/protein'
 require 'rbbt/entity/mutated_isoform'
 require 'rbbt/entity/InterPro'
 require 'rbbt/sources/pfam'
@@ -43,7 +45,7 @@ end
 get '/appris_features' do
   isoform = consume_parameter :isoform
   raise "No isoform provided" if isoform.nil?
-  features = Structure.appris_features(isoform)
+  features = Proteomics.appris_features(isoform)
   content_type :json
   halt 200, features.to_json
 end

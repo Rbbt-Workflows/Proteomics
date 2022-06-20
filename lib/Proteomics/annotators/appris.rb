@@ -76,7 +76,7 @@ module Proteomics
     @@appris_annotations[organism] ||= begin
                                          org, data = organism.split("/")
                                          build = Organism.GRC_build(organism)
-                                         protein_annotations = Appris[org][build].protein_annotations.tsv
+                                         protein_annotations = Appris[org][build].protein_annotations.produce.tsv
                                        end
   end
 
@@ -103,4 +103,43 @@ module Proteomics
     res
   end
 
+  def self.appris_features(isoform)
+    transcript = isoform2transcript[isoform]
+
+    values = appris_annotations[transcript]
+    return [] if values.nil?
+
+    features = []
+
+    Misc.zip_fields(values).each do |feat,loc,desc|
+      start, eend = loc.split("-")
+      features << {:type => "feat", :start => start.to_i, :end => eend.to_i, :description => desc}
+    end
+
+    #values["firestar functional residues"].each do |res|
+    #  position, ligand = res.split ":"
+    #  features << {:type => "firestar", :start => position.to_i, :end => position.to_i, :description => ligand}
+    #end
+
+    #values["spade whole domain"].each do |res|
+    #  position, pfam_acc = res.split ":"
+    #  start, eend = position.split("-")
+    #  pfam_acc.sub!(/\.\d+$/, '')
+    #  features << {:type => "spade", :start => start.to_i, :end => eend.to_i, :description => pfam_acc}
+    #end
+
+    #values["thump transmembrane helix"].each do |res|
+    #  position, damage = res.split ":"
+    #  start, eend = position.split("-")
+    #  damage = damage == "1" ? "Damaged" : "Normal"
+    #  features << {:type => "thump", :start => start.to_i, :end => eend.to_i, :description => damage}
+    #end
+
+    #values["crash signal peptide"].each do |res|
+    #  start, eend = res.split("-")
+    #  features << {:type => "crash", :start => start.to_i, :end => eend.to_i, :description => "Signal peptide"}
+    #end
+
+    features
+  end
 end

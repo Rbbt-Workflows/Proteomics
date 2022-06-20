@@ -36,12 +36,14 @@ module Proteomics
   dep :dna_interfaces
   task :dna_wizard => :tsv do
     Step.wait_for_jobs dependencies
-    dependencies.inject(nil) do |acc,dep|
-      tsv = dep.load
+    deps = [step(:mutated_isoforms_fast)] + dependencies
+    deps.inject(nil) do |acc,dep|
+      tsv = dep.load.to_double
       if dep.task_name.to_s.include?("neig")
         tsv.fields = tsv.fields.collect{|f| f == "Neighbour" ? f : "Neighbouring " + f }
       end
-      acc = acc.nil? ? tsv : acc.attach(tsv, :complete => true, :zipped => true)
+      attach_fields = tsv.fields - ["Genomic Mutation", "Neighbouring Mutated Isoform"]
+      acc = acc.nil? ? tsv : acc.attach(tsv, :complete => true, :zipped => true, :fields => attach_fields)
       acc
     end
   end

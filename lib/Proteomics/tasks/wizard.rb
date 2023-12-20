@@ -18,7 +18,9 @@ module Proteomics
       if dep.task_name.to_s.include?("neig")
         tsv.fields = tsv.fields.collect{|f| f == "Neighbour" ? f : "Neighbouring " + f }
       end
-      acc = acc.nil? ? tsv : acc.attach(tsv, :complete => true, :zipped => true)
+      #  TODO: revise
+      #acc = acc.nil? ? tsv : acc.attach(tsv, :complete => true, :zipped => true)
+      acc = acc.nil? ? tsv : acc.attach(tsv, :complete => true, :one2one => true)
       acc
     end
   end

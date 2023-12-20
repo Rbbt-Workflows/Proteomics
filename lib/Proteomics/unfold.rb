@@ -17,8 +17,10 @@ module Proteomics
 
     job = workflow.job(task, nil, other_inputs.merge(input => unfolded_stream))
 
-    parser = TSV::Parser.new job.exec(:stream)
-    options = parser.options
+    # TODO: revise
+    #parser = TSV::Parser.new job.exec(:stream)
+    parser = TSV::Parser.new job.exec
+    options = parser.options.dup
     options[:key_field] = key_field if key_field
     options[:fields] = [unfold_field] + options[:fields] if unfold_field
     dumper = TSV::Dumper.new options

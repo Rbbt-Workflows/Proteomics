@@ -95,7 +95,9 @@ module Proteomics
                                           'SNP ID',
                                           'Disease'
                                         ]
-                                       UniProt.annotated_variants.tsv(:key_field => "UniProt Variant ID", :fields => fields, :persist => true, :type => :double, :zipped => true, :unnamed => true).to_list
+                                       #UniProt.annotated_variants.tsv(:key_field => "UniProt Variant ID", :fields => fields, :persist => true, :type => :double, :zipped => true, :unnamed => true).to_list
+                                        #TODO revise
+                                       UniProt.annotated_variants.tsv(:key_field => "UniProt Variant ID", :fields => fields, :persist => true, :type => :double, :one2one => true, :unnamed => true).to_list
                                      end
   end
   

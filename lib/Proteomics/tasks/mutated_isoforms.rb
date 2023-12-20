@@ -132,7 +132,7 @@ module Proteomics
 
 
 
-  dep :mi_neighbours
+  dep :mi_neighbours, :compute => :produce
   input :organism, :string, "Organism code", Organism.default_code("Hsa")
   input :database, :select, "Database of annotations", "UniProt", :select_options => ANNOTATORS.keys
   input :simplify, :boolean, "Simplify output lists", false

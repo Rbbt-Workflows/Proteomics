@@ -49,8 +49,9 @@ module Proteomics
                                      end
   end
 
-  def self.COSMIC_resistance_mutations
-    @@COSMIC_resistance_mutations ||= Persist.persist_tsv(COSMIC.mi_drug_resistance, "COSMIC:resistance_mutations", {}, :serializer => :double, :persist => true ) do |data|
+  def self.COSMIC_resistance_mutations(build = 'GRCh38')
+    @@COSMIC_resistance_mutations ||= {}
+    @@COSMIC_resistance_mutations[build] ||= Persist.persist_tsv(COSMIC[build].mi_drug_resistance, "COSMIC[#{build}]:resistance_mutations", {}, :serializer => :double, :persist => true ) do |data|
       fix_change = lambda{|line|
         if line[0] == "#"
           line
@@ -67,7 +68,7 @@ module Proteomics
           rest * "\t"
         end
       }
-      tsv = COSMIC.mi_drug_resistance.tsv :fix => fix_change, :merge => true, :unnamed => true
+      tsv = COSMIC[build].mi_drug_resistance.tsv :fix => fix_change, :merge => true, :unnamed => true
       data.merge!(tsv)
       tsv.annotate(data)
       data

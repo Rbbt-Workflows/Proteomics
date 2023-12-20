@@ -43,6 +43,6 @@ end
 require 'Proteomics/annotators/uniprot'
 require 'Proteomics/annotators/appris'
 require 'Proteomics/annotators/InterPro'
-require 'Proteomics/annotators/COSMIC'
+#require 'Proteomics/annotators/COSMIC'
 
 

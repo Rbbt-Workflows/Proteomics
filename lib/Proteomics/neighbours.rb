@@ -1,5 +1,6 @@
 require 'rbbt/tsv'
 require 'rbbt/sources/organism'
+require 'rbbt/sources/alphafold'
 require 'rbbt/PDB'
 require 'rbbt/PDB/isoform'
 
@@ -79,10 +80,15 @@ module Proteomics
   end
 
 
-  def self.neighbours(isoform, residues, organism = Organism.default_organism("Hsa"), distance = 5, only_pdb = false, just_one = true, use_i3d = true)
+  def self.neighbours(isoform, residues, organism = Organism.default_organism("Hsa"), distance = 5, only_pdb = false, just_one = true, use_i3d = true, use_alphafold = true)
     tsv = TSV.setup({}, :key_field => "Isoform:residue", :fields => ["Ensembl Protein ID", "Residue", "PDB", "Neighbours"], :type => :double)
 
     pdbs = PDB.isoform_uniprot_pdbs(isoform, organism).keys
+
+    if use_alphafold
+      uniprot = Proteomics.iso2uni(organism)[isoform]
+      pdbs += pdbs + AlphaFold.pdbs(uniprot) if uniprot
+    end
 
     pdbs += pdbs + PDB.isoform_i3d_pdbs(isoform, organism).column("URL").values.flatten if use_i3d
     

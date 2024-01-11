@@ -95,9 +95,7 @@ module Proteomics
                                           'SNP ID',
                                           'Disease'
                                         ]
-                                       #UniProt.annotated_variants.tsv(:key_field => "UniProt Variant ID", :fields => fields, :persist => true, :type => :double, :zipped => true, :unnamed => true).to_list
-                                        #TODO revise
-                                       UniProt.annotated_variants.tsv(:key_field => "UniProt Variant ID", :fields => fields, :persist => true, :type => :double, :one2one => true, :unnamed => true).to_list
+                                       UniProt.annotated_variants.tsv(:key_field => "UniProt Variant ID", :fields => fields, :persist => true, :type => :double, :unnamed => true, :one2one => true, :zipped => true).to_list
                                      end
   end
   
@@ -171,9 +169,9 @@ module Proteomics
     features.select{|info|
       info[:type] == "VARIANT" and info[:start] == residue
     }.each{|info|
-      if info[:description].match(/(VAR_\d+)/)
-        id = $1
-        next unless @annotations.include? id
+      if m = info[:description].match(/(VAR_\d+)/)
+        id = m[1]
+        next unless @annotations.include?(id)
         overlapping[0] << id
         annots = @annotations[id]
         overlapping[1] << annots[2]

@@ -16,7 +16,8 @@ module Proteomics
     dependencies.inject(nil) do |acc,dep|
       tsv = dep.load
       if dep.task_name.to_s.include?("neig")
-        tsv.fields = tsv.fields.collect{|f| f == "Neighbour" ? f : "Neighbouring " + f }
+        database = dep.recursive_inputs["database"]
+        tsv.fields = tsv.fields.collect{|f| f == "Neighbours" ? f + " used for #{database}" : "Neighbouring " + f }
       end
       #  TODO: revise
       #acc = acc.nil? ? tsv : acc.attach(tsv, :complete => true, :zipped => true)

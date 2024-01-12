@@ -17,7 +17,7 @@ module Proteomics
       tsv = dep.load
       if dep.task_name.to_s.include?("neig")
         database = dep.recursive_inputs["database"]
-        tsv.fields = tsv.fields.collect{|f| f == "Neighbours" ? f + " used for #{database}" : "Neighbouring " + f }
+        tsv.fields = tsv.fields.collect{|f| f == "Neighbour" ? f + " used for #{database}" : "Neighbouring " + f }
       end
       #  TODO: revise
       #acc = acc.nil? ? tsv : acc.attach(tsv, :complete => true, :zipped => true)
@@ -43,7 +43,7 @@ module Proteomics
     deps.inject(nil) do |acc,dep|
       tsv = dep.load.to_double
       if dep.task_name.to_s.include?("neig")
-        tsv.fields = tsv.fields.collect{|f| f == "Neighbour" ? f : "Neighbouring " + f }
+        tsv.fields = tsv.fields.collect{|f| f == "Neighbour" ? f + " used for #{database}" : "Neighbouring " + f }
       end
       attach_fields = tsv.fields - ["Genomic Mutation", "Neighbouring Mutated Isoform"]
       acc = acc.nil? ? tsv : acc.attach(tsv, :complete => true, :zipped => true, :fields => attach_fields)

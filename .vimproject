@@ -7,6 +7,7 @@ Proteomics=/$PWD filter="*.rb *.rake Rakefile *.rdoc *.R *.sh *.js *.haml *.sass
   sinatra.rb
   rbbt=rbbt{
    sources=sources{
+    alphafold.rb
     interactome_3d.rb
    }
    tools=tools{

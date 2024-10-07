@@ -49,7 +49,8 @@ module Proteomics
       values.collect{|l| Array === l ? l * "|" : l }
     end
 
-    stream = TSV.paste_streams [step(:mutated_isoforms_fast), dumper.stream], :sort => false
+    mis_stream = step(:mutated_isoforms_fast)
+    stream = TSV.paste_streams [mis_stream, dumper.stream], :sort => false, :type => :double
 
     TSV.traverse stream, :type => :array, :into => :stream do |line|
       next if line != /^#/ && line.split("\t")[2].nil?

@@ -3,7 +3,7 @@ module PDB
   MAX_DISTANCE = 10
 
   def self.atom_distance(pdb = nil, pdbfile = nil, max_distance = MAX_DISTANCE)
-    Persist.persist("Atom distances", :marshal, :dir => cache(:atom_distance), :other => {:pdb => pdb, :pdbfile => pdbfile, :max_distance => max_distance}) do 
+    Persist.persist("Atom distances", :marshal, :dir => cache(:atom_distance), :other => {:pdb => pdb, :pdbfile => pdbfile, :max_distance => max_distance}, :persist => true) do 
       Log.low "Computing atom distances (#{ max_distance }): #{pdb || "pdbfile"}"
       stream = pdb_stream(pdb, pdbfile)
 

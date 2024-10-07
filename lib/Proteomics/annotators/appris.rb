@@ -1,6 +1,6 @@
 module Proteomics
   def self.isoform2transcript(organism = Organism.default_code("Hsa"))
-    @isoform2transcript ||= Organism.transcripts(organism).index :target => "Ensembl Transcript ID", :fields => "Ensembl Protein ID", :persist => true
+    @isoform2transcript ||= Organism.transcripts(organism).index :target => "Ensembl Transcript ID", :fields => ["Ensembl Protein ID"], :persist => true
   end
 
   #def self.appris_dataset

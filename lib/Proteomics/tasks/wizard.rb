@@ -3,12 +3,13 @@ module Proteomics
   dep :annotate_mi, :database => :placeholder do |jobname,options|
     Proteomics::ANNOTATORS.keys.collect do |database|
       {:inputs => options.merge(:database => database), :jobname => jobname}
-    end
+    end.compact.compact
   end
   dep :annotate_mi_neighbours, :database => :placeholder do |jobname,options|
     Proteomics::ANNOTATORS.keys.collect do |database|
+      next
       {:inputs => options.merge(:database => database), :jobname => jobname}
-    end
+    end.compact
   end
   dep :mi_interfaces
   task :mi_wizard => :tsv do
@@ -20,8 +21,7 @@ module Proteomics
         tsv.fields = tsv.fields.collect{|f| f == "Neighbour" ? f + " used for #{database}" : "Neighbouring " + f }
       end
       #  TODO: revise
-      #acc = acc.nil? ? tsv : acc.attach(tsv, :complete => true, :zipped => true)
-      acc = acc.nil? ? tsv : acc.attach(tsv, :complete => true, :one2one => true)
+      acc = acc.nil? ? tsv : acc.attach(tsv, :complete => true, :zipped => true)
       acc
     end
   end
@@ -41,6 +41,8 @@ module Proteomics
     Step.wait_for_jobs dependencies
     deps = [step(:mutated_isoforms_fast)] + dependencies
     deps.inject(nil) do |acc,dep|
+      database = dep.recursive_inputs[:database]
+      iii dep.path
       tsv = dep.load.to_double
       if dep.task_name.to_s.include?("neig")
         tsv.fields = tsv.fields.collect{|f| f == "Neighbour" ? f + " used for #{database}" : "Neighbouring " + f }

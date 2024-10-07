@@ -25,7 +25,7 @@ module PDB
     return pdbs if values.nil?
 
     Misc.zip_fields(values).each do |list|
-      info = Misc.zip2hash(proteins.fields, list)
+      info = Misc.zip2hash(proteins.fields.dup, list)
       chain, filename, type = info.values_at "CHAIN", "FILENAME", "TYPE"
 
       type = filename =~ /EXP/ ? :pdb : :model
@@ -44,10 +44,9 @@ module PDB
 
     return pdbs if uniprot.nil?
 
-    interactions = @@interactions ||= Interactome3d.interactions_tsv.tsv :merge => true, :persist => true
+    interactions = @@interactions ||= Interactome3d.interactions_tsv.tsv :merge => true, :persist => true, :persist_update => true
     #  TODO: revise
-    #interactions_reverse = @@interactions_reverse ||= Interactome3d.interactions_tsv.tsv :merge => true, :key_field => "PROT2", :zipped => true, :persist => true
-    interactions_reverse = @@interactions_reverse ||= Interactome3d.interactions_tsv.tsv :merge => true, :key_field => "PROT2", :one2one => true, :persist => true
+    interactions_reverse = @@interactions_reverse ||= Interactome3d.interactions_tsv.tsv :merge => true, :key_field => "PROT2", :zipped => true, :persist => true
 
     if values = interactions[uniprot]
       prot1 = uniprot

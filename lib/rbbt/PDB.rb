@@ -19,7 +19,7 @@ module PDB
       begin
         content = Persist.persist("PDB file", :text, :persist => true, :dir => cache(:pdb_files), :other => {:pdb => pdb}) do 
           Misc.insist(1) do
-            if pdb.length > 5 and Open.remote?(pdb)
+            if pdb.length > 5 || Open.remote?(pdb)
               Open.read(pdb)
             else
               pdb = pdb.sub(/^=/,'')

@@ -42,7 +42,6 @@ module Proteomics
     deps = [step(:mutated_isoforms_fast)] + dependencies
     deps.inject(nil) do |acc,dep|
       database = dep.recursive_inputs[:database]
-      iii dep.path
       tsv = dep.load.to_double
       if dep.task_name.to_s.include?("neig")
         tsv.fields = tsv.fields.collect{|f| f == "Neighbour" ? f + " used for #{database}" : "Neighbouring " + f }

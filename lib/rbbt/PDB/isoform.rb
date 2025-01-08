@@ -18,7 +18,7 @@ module PDB
 
     return pdbs if uniprot.nil?
 
-    proteins = Interactome3d.proteins_tsv.tsv :merge => true, :persist => true
+    proteins = Interactome3d.proteins.tsv :merge => true, :persist => true
 
     values = proteins[uniprot]
 
@@ -29,7 +29,8 @@ module PDB
       chain, filename, type = info.values_at "CHAIN", "FILENAME", "TYPE"
 
       type = filename =~ /EXP/ ? :pdb : :model
-      url = "https://interactome3d.irbbarcelona.org//pdb.php?dataset=human&type1=proteins&type2=#{type}&pdb=#{filename}"
+      #url = "https://interactome3d.irbbarcelona.org//pdb.php?dataset=human&type1=proteins&type2=#{type}&pdb=#{filename}"
+      url = Interactome3d.pdb(filename)
 
       pdbs.zip_new(filename, [chain, type, url])
     end
@@ -44,9 +45,9 @@ module PDB
 
     return pdbs if uniprot.nil?
 
-    interactions = @@interactions ||= Interactome3d.interactions_tsv.tsv :merge => true, :persist => true, :persist_update => true
+    interactions = @@interactions ||= Interactome3d.interactions.tsv :merge => true, :persist => true, :persist_update => true
     #  TODO: revise
-    interactions_reverse = @@interactions_reverse ||= Interactome3d.interactions_tsv.tsv :merge => true, :key_field => "PROT2", :zipped => true, :persist => true
+    interactions_reverse = @@interactions_reverse ||= Interactome3d.interactions.tsv :merge => true, :key_field => "PROT2", :zipped => true, :persist => true
 
     if values = interactions[uniprot]
       prot1 = uniprot
@@ -55,7 +56,8 @@ module PDB
         prot2, chain1, chain2, filename, type = info.values_at "PROT2", "CHAIN1", "CHAIN2", "FILENAME", "TYPE"
         
         type = filename =~ /EXP/ ? :pdb : :model
-        url = "http://interactome3d.irbbarcelona.org/pdb.php?dataset=human&type1=interactions&type2=#{ type }&pdb=#{ filename }"
+        #url = "http://interactome3d.irbbarcelona.org/pdb.php?dataset=human&type1=interactions&type2=#{ type }&pdb=#{ filename }"
+        url = Interactome3d.pdb(filename)
 
         if prot2 == prot1
           partner = isoform
